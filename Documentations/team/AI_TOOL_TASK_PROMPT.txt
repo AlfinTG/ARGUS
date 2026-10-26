@@ -1,0 +1,15 @@
+ARGUS — IMPLEMENTATION PROMPT FOR A TEAMMATE'S AI CODING TOOL
+
+First read the root README.md, AGENTS.md, docs/PROJECT_CHARTER.md, docs/SOLUTION_SPECIFICATION.md, docs/24_HOUR_MVP.md, docs/PRODUCTION_IMPLEMENTATION_BLUEPRINT.md, and the relevant technical documents. Inspect the current code before editing. Your task is to implement the assigned workstream for ARGUS, the SIH26262 approval workflow and compliance automation prototype.
+
+Do not replace, rename, or redesign the whole project without evidence and an explicit plan. Keep the shared ARGUS visual identity, route/stage/status/role names, event/rule contracts and file boundaries consistent. Do not introduce a new stack unless the repository audit shows it is necessary.
+
+The feature is not complete if it only adds a visual button/card. Implement the whole slice: input validation, permission/precondition checks, state change or task/alert, idempotency where event processing can repeat, audit record, UI feedback, and tests. Use only fictional demo data. All thresholds must be called demo configuration until verified against current official AICTE sources and authorized procedures. No autonomous statutory decision, fake government integration, or real external notifications.
+
+Before making changes, return a brief implementation plan with: requirements addressed, files to inspect/change, API/data contracts, edge cases, test plan and integration risks. Then implement in small steps. Add or update tests for successful behavior, invalid transitions, forbidden roles, missing/blank reason, boundary dates, repeated automation cycle and any state interaction relevant to the feature. Run the tests/build checks available in the repo and report the exact commands/results. If a requirement is unclear or the docs conflict, stop and identify the conflict rather than inventing a rule.
+
+Definition of done: the feature is reproducible from README, aligns with docs/technical contracts, includes a truthful simulation label when needed, logs important state changes, has acceptance evidence, and does not break the existing P0 end-to-end demo. Finish with a concise report of files changed, test results, limitations and what the next teammate can integrate.
+
+
+FULL-STACK GAP CLOSURE ADDITION
+The task includes closing the gap between the static demo and a working shared application. Inspect actual repo state and implement real provider-backed auth, verified API identity, server-side role/scope enforcement, a shared PostgreSQL database with migrations, durable workflow state, transactional audit/outbox records, database-enforced idempotency, and a scheduled worker where these are currently missing. Connect the frontend to real APIs. Use `docs/PRODUCTION_IMPLEMENTATION_BLUEPRINT.md` as the acceptance contract. Do not only update docs; write and test the implementation. If credentials are unavailable, implement a clean configuration boundary and label live deployment/integration BLOCKED, not complete.

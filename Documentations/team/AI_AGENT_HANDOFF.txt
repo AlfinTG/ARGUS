@@ -1,0 +1,46 @@
+ARGUS — MASTER HANDOFF FOR AI CODING TOOLS
+Problem statement: SIH26262, Integrated AICTE Approval Workflow Automation, Compliance Monitoring and Alert Management System.
+Product: ARGUS — AICTE Approval & Compliance Intelligence Platform.
+Tagline: Complete Visibility. Accountable Governance.
+
+MISSION
+Build a credible, automation-first prototype that proves the complete loop: event → validate context/permissions → evaluate a configured rule → prevent duplicate action → perform a permitted action/task → record an auditable outcome → show the result in the UI. A dashboard with decorative controls is insufficient.
+
+SOURCE OF TRUTH
+Read README.md, AGENTS.md, docs/PROJECT_CHARTER.md, docs/SOLUTION_SPECIFICATION.md, docs/24_HOUR_MVP.md, technical/ARCHITECTURE.md, technical/WORKFLOW_AND_RULES.md, technical/DATA_MODEL.md, technical/API_CONTRACT.md, technical/SECURITY_PRIVACY.md and technical/TEST_PLAN.md before material work. If source files conflict, report the conflict and propose a decision; do not silently invent a rule. Preserve the existing repository stack unless audited evidence supports a change.
+
+P0 REQUIREMENTS
+1. Synthetic application records with route profile, current stage, owner, status and due date.
+2. Route-aware valid stage advancement; block invalid transitions and unauthorized actions.
+3. Deficiency return requires a non-empty reason and preserves a resume stage; institution resubmission routes back for review.
+4. Deadline reminders and overdue escalations evaluated by a repeatable rule cycle.
+5. Idempotency: rerunning the same cycle must not create duplicate alerts/tasks for the same subject + rule + threshold window + policy version.
+6. EVC eligibility queue, scheduling/assignment and report status as separate steps.
+7. Evidence submission is distinct from authorized verification.
+8. Document expiry warning, renewal submission and review are separate states.
+9. Auditable trail with actor/system, timestamp, target, rule ID/version, reason, result and correlation/reference ID.
+10. Honest demo labels: fictional records and simulated notifications; do not imply live AICTE integration.
+
+REGULATORY AND SECURITY BOUNDARIES
+Never claim ARGUS is official or AICTE-endorsed. Do not invent statutory timelines. Verify the currently applicable official handbook/circulars before loading live rules. Final regulatory scrutiny and approval/rejection decisions remain with authorized officials. AI/OCR is future advisory support only, source-linked and human-reviewed. Never use real institution/person data or commit credentials. Client-side role switching is not production security; enforce permissions server-side in the production design.
+
+HOW TO WORK
+First audit the repository, current framework, scripts, tests, routes and files. Report a compact plan and identify the smallest vertical slice. Make scoped changes instead of rewriting blindly. Agree on shared status/role names and API/data shapes before parallel work. Create/extend tests for happy paths, invalid transitions, role denial, boundary dates and duplicate runs. Run the available tests/build/lint and report exact command results. Keep main runnable; use branches and PRs.
+
+DEFINITION OF DONE
+A teammate unfamiliar with the code can reproduce the demo from README. The end-to-end route/deficiency/automation/EVC/compliance/document/audit story works. A second automation cycle creates no duplicate actions. UI states and audit data agree. Known limitations are explicitly documented. No unsupported claim of production readiness is made.
+
+EXPECTED RESPONSE FOR EACH TASK
+- Requirement and relevant source files
+- Proposed design and files to change
+- Acceptance criteria
+- Implementation summary
+- Tests actually run and outcomes
+- Known limitations/assumptions
+- Integration handoff
+
+Do not generate a presentation unless asked. If preparing presentation input, use docs/PRESENTATION_SOURCE_BRIEF.md and only claims demonstrated by the actual current build.
+
+
+FULL-STACK GAP CLOSURE ADDITION
+The task includes closing the gap between the static demo and a working shared application. Inspect actual repo state and implement real provider-backed auth, verified API identity, server-side role/scope enforcement, a shared PostgreSQL database with migrations, durable workflow state, transactional audit/outbox records, database-enforced idempotency, and a scheduled worker where these are currently missing. Connect the frontend to real APIs. Use `docs/PRODUCTION_IMPLEMENTATION_BLUEPRINT.md` as the acceptance contract. Do not only update docs; write and test the implementation. If credentials are unavailable, implement a clean configuration boundary and label live deployment/integration BLOCKED, not complete.
