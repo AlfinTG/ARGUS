@@ -1,16 +1,7 @@
 import React from 'react';
-import { 
-  LayoutDashboard, 
-  FileText, 
-  ShieldCheck, 
-  CalendarClock, 
-  FolderCheck, 
-  BellRing, 
-  History, 
-  SlidersHorizontal,
-  AlertCircle
-} from 'lucide-react';
-import type { ScreenType, NavCounts } from '../types';
+import { ROLE_PERMITTED_SCREENS } from '../types';
+import type { ScreenType, NavCounts, RoleType } from '../types';
+import { useLanguage } from '../context/LanguageContext';
 
 interface SidebarProps {
   currentScreen: ScreenType;
@@ -18,6 +9,7 @@ interface SidebarProps {
   counts: NavCounts;
   isOpenMobile: boolean;
   onCloseMobile: () => void;
+  userRole?: RoleType;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -26,7 +18,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   counts,
   isOpenMobile,
   onCloseMobile,
+  userRole = 'Scrutiny Officer',
 }) => {
+  const { t } = useLanguage();
+
   const handleNav = (screen: ScreenType) => {
     onNavigate(screen);
     onCloseMobile();
@@ -37,104 +32,146 @@ export const Sidebar: React.FC<SidebarProps> = ({
     return currentScreen === screen;
   };
 
+  const permitted = ROLE_PERMITTED_SCREENS[userRole] || ['overview'];
+  const canAccess = (screen: ScreenType) => permitted.includes(screen);
+
   return (
-    <aside className={`sidebar ${isOpenMobile ? 'open' : ''}`} aria-label="Main navigation">
-      <div className="brand-section">
-        <div className="brand-mark">A.</div>
-        <div>
-          <div className="brand-title">ARGUS</div>
-          <div className="brand-subtitle">AICTE Intelligence</div>
-        </div>
-      </div>
+    <aside
+      className={`sidebar ${isOpenMobile ? 'open' : ''}`}
+      aria-label="Main navigation"
+      id="site-navigation"
+    >
+      <div className="nav-section-label">{t('navOperations')}</div>
+      <nav className="nav-group" aria-label={t('navOperations')}>
+        {canAccess('overview') && (
+          <button
+            type="button"
+            className={`nav-item ${isScreenActive('overview') ? 'active' : ''}`}
+            onClick={() => handleNav('overview')}
+            aria-current={isScreenActive('overview') ? 'page' : undefined}
+          >
+            <span className="nav-item-label">{t('navOverview')}</span>
+          </button>
+        )}
 
-      <div className="nav-section-label">Operations</div>
-      <nav className="nav-group">
-        <button
-          type="button"
-          className={`nav-item ${isScreenActive('overview') ? 'active' : ''}`}
-          onClick={() => handleNav('overview')}
-        >
-          <span className="nav-item-icon"><LayoutDashboard size={17} /></span>
-          <span className="nav-item-label">Overview</span>
-        </button>
+        {canAccess('applications') && (
+          <button
+            type="button"
+            className={`nav-item ${isScreenActive('applications') ? 'active' : ''}`}
+            onClick={() => handleNav('applications')}
+            aria-current={isScreenActive('applications') ? 'page' : undefined}
+          >
+            <span className="nav-item-label">{t('navApplications')}</span>
+            {counts.applications > 0 && (
+              <span className="nav-badge" aria-label={`${counts.applications} open`}>
+                {counts.applications}
+              </span>
+            )}
+          </button>
+        )}
 
-        <button
-          type="button"
-          className={`nav-item ${isScreenActive('applications') ? 'active' : ''}`}
-          onClick={() => handleNav('applications')}
-        >
-          <span className="nav-item-icon"><FileText size={17} /></span>
-          <span className="nav-item-label">Applications</span>
-          {counts.applications > 0 && <span className="nav-badge">{counts.applications}</span>}
-        </button>
+        {canAccess('compliance') && (
+          <button
+            type="button"
+            className={`nav-item ${isScreenActive('compliance') ? 'active' : ''}`}
+            onClick={() => handleNav('compliance')}
+            aria-current={isScreenActive('compliance') ? 'page' : undefined}
+          >
+            <span className="nav-item-label">{t('navCompliance')}</span>
+            {counts.compliance > 0 && (
+              <span className="nav-badge" aria-label={`${counts.compliance} pending`}>
+                {counts.compliance}
+              </span>
+            )}
+          </button>
+        )}
 
-        <button
-          type="button"
-          className={`nav-item ${isScreenActive('compliance') ? 'active' : ''}`}
-          onClick={() => handleNav('compliance')}
-        >
-          <span className="nav-item-icon"><ShieldCheck size={17} /></span>
-          <span className="nav-item-label">Compliance</span>
-          {counts.compliance > 0 && <span className="nav-badge">{counts.compliance}</span>}
-        </button>
+        {canAccess('evc') && (
+          <button
+            type="button"
+            className={`nav-item ${isScreenActive('evc') ? 'active' : ''}`}
+            onClick={() => handleNav('evc')}
+            aria-current={isScreenActive('evc') ? 'page' : undefined}
+          >
+            <span className="nav-item-label">{t('navEvc')}</span>
+            {counts.evc > 0 && (
+              <span className="nav-badge" aria-label={`${counts.evc} open`}>
+                {counts.evc}
+              </span>
+            )}
+          </button>
+        )}
 
-        <button
-          type="button"
-          className={`nav-item ${isScreenActive('evc') ? 'active' : ''}`}
-          onClick={() => handleNav('evc')}
-        >
-          <span className="nav-item-icon"><CalendarClock size={17} /></span>
-          <span className="nav-item-label">EVC desk</span>
-          {counts.evc > 0 && <span className="nav-badge">{counts.evc}</span>}
-        </button>
+        {canAccess('documents') && (
+          <button
+            type="button"
+            className={`nav-item ${isScreenActive('documents') ? 'active' : ''}`}
+            onClick={() => handleNav('documents')}
+            aria-current={isScreenActive('documents') ? 'page' : undefined}
+          >
+            <span className="nav-item-label">{t('navDocuments')}</span>
+            {counts.documents > 0 && (
+              <span className="nav-badge" aria-label={`${counts.documents} unverified`}>
+                {counts.documents}
+              </span>
+            )}
+          </button>
+        )}
 
-        <button
-          type="button"
-          className={`nav-item ${isScreenActive('documents') ? 'active' : ''}`}
-          onClick={() => handleNav('documents')}
-        >
-          <span className="nav-item-icon"><FolderCheck size={17} /></span>
-          <span className="nav-item-label">Documents</span>
-          {counts.documents > 0 && <span className="nav-badge">{counts.documents}</span>}
-        </button>
+        {canAccess('alerts') && (
+          <button
+            type="button"
+            className={`nav-item ${isScreenActive('alerts') ? 'active' : ''}`}
+            onClick={() => handleNav('alerts')}
+            aria-current={isScreenActive('alerts') ? 'page' : undefined}
+          >
+            <span className="nav-item-label">{t('navAlerts')}</span>
+            {counts.alerts > 0 && (
+              <span className="nav-badge" aria-label={`${counts.alerts} open`}>
+                {counts.alerts}
+              </span>
+            )}
+          </button>
+        )}
 
-        <button
-          type="button"
-          className={`nav-item ${isScreenActive('alerts') ? 'active' : ''}`}
-          onClick={() => handleNav('alerts')}
-        >
-          <span className="nav-item-icon"><BellRing size={17} /></span>
-          <span className="nav-item-label">Alerts</span>
-          {counts.alerts > 0 && <span className="nav-badge">{counts.alerts}</span>}
-        </button>
-
-        <button
-          type="button"
-          className={`nav-item ${isScreenActive('audit') ? 'active' : ''}`}
-          onClick={() => handleNav('audit')}
-        >
-          <span className="nav-item-icon"><History size={17} /></span>
-          <span className="nav-item-label">Audit trail</span>
-        </button>
+        {canAccess('audit') && (
+          <button
+            type="button"
+            className={`nav-item ${isScreenActive('audit') ? 'active' : ''}`}
+            onClick={() => handleNav('audit')}
+            aria-current={isScreenActive('audit') ? 'page' : undefined}
+          >
+            <span className="nav-item-label">{t('navAudit')}</span>
+          </button>
+        )}
       </nav>
 
-      <div className="nav-section-label">Configuration</div>
-      <nav className="nav-group">
-        <button
-          type="button"
-          className={`nav-item ${isScreenActive('rules') ? 'active' : ''}`}
-          onClick={() => handleNav('rules')}
-        >
-          <span className="nav-item-icon"><SlidersHorizontal size={17} /></span>
-          <span className="nav-item-label">Automation rules</span>
-        </button>
-      </nav>
+      {canAccess('rules') && (
+        <>
+          <div className="nav-section-label">{t('navConfig')}</div>
+          <nav className="nav-group" aria-label={t('navConfig')}>
+            <button
+              type="button"
+              className={`nav-item ${isScreenActive('rules') ? 'active' : ''}`}
+              onClick={() => handleNav('rules')}
+              aria-current={isScreenActive('rules') ? 'page' : undefined}
+            >
+              <span className="nav-item-label">{t('navRules')}</span>
+            </button>
+          </nav>
+        </>
+      )}
 
       <div className="sidebar-footer">
-        <div className="sidebar-footer-heading">
-          <AlertCircle size={13} /> Demonstration Lab
+        <div className="sidebar-footer-heading">{t('helpdeskTitle')}</div>
+        <div>
+          helpdesk@aicte-india.org<br />
+          {t('helpdeskPhone')}<br />
+          {t('helpdeskHours')}
         </div>
-        <div>Synthetic records only. External notifications & AICTE systems are simulated.</div>
+        <div style={{ marginTop: 8, color: 'var(--text-faint)', fontSize: 10.5 }}>
+          AICTE ARGUS v1.0
+        </div>
       </div>
     </aside>
   );

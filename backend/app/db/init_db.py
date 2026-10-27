@@ -20,6 +20,29 @@ def init_db(db: Session) -> None:
     bind = db.get_bind() if db is not None else engine
     Base.metadata.create_all(bind=bind)
 
+    # Ensure binary metadata columns exist on existing SQLite tables
+    from sqlalchemy import text
+    new_columns = [
+        ("document_records", "file_name", "VARCHAR"),
+        ("document_records", "file_path", "VARCHAR"),
+        ("document_records", "file_size", "INTEGER"),
+        ("document_records", "mime_type", "VARCHAR"),
+        ("document_records", "checksum_sha256", "VARCHAR"),
+        ("document_records", "uploaded_at", "VARCHAR"),
+        ("compliance_obligations", "file_name", "VARCHAR"),
+        ("compliance_obligations", "file_path", "VARCHAR"),
+        ("compliance_obligations", "file_size", "INTEGER"),
+        ("compliance_obligations", "mime_type", "VARCHAR"),
+        ("compliance_obligations", "checksum_sha256", "VARCHAR"),
+        ("compliance_obligations", "uploaded_at", "VARCHAR"),
+    ]
+    for tbl, col, col_type in new_columns:
+        try:
+            db.execute(text(f"ALTER TABLE {tbl} ADD COLUMN {col} {col_type}"))
+            db.commit()
+        except Exception:
+            db.rollback()
+
     # 1. Seed demo user accounts if empty
     if db.query(User).count() == 0:
         demo_password = get_password_hash("Demo@2026!")

@@ -1,20 +1,27 @@
+import hashlib
 import random
 import uuid
 from datetime import datetime, timezone
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.api.deps import get_current_user, require_roles, verify_record_scope
 from app.models.user import User
 from app.models.application import Application
 from app.models.evc import EVCTask
+from app.models.compliance import ComplianceObligation
 from app.models.audit import AuditEvent
 from app.schemas.domain import (
     ApplicationResponse, 
     ApplicationCreate, 
     TransitionRequest,
     ROUTES,
+)
+from app.services.pdf_generator import (
+    generate_electronic_case_summary_pdf,
+    generate_sanction_order_pdf,
+    generate_deficiency_notice_pdf,
 )
 
 router = APIRouter()
@@ -300,3 +307,111 @@ def transition_application(
 
     else:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Unsupported action: {req.action}")
+
+
+@router.get("/{id}/summary")
+def get_application_summary_pdf(
+    id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Generate and stream standardized Electronic Case Summary (ECS) lifecycle dossier PDF.
+    Reflects real-time audit ledger correlation IDs, stage progression, and committee reports.
+    """
+    app = db.query(Application).filter(Application.id == id).first()
+    if not app:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found")
+
+    verify_record_scope(current_user, app.institution)
+
+    audit_events = (
+        db.query(AuditEvent)
+        .filter(AuditEvent.target == app.id)
+        .order_by(AuditEvent.time.desc())
+        .all()
+    )
+    evc_tasks = db.query(EVCTask).filter(EVCTask.app_id == app.id).all()
+    compliance_obs = db.query(ComplianceObligation).filter(ComplianceObligation.app_id == app.id).all()
+
+    pdf_bytes = generate_electronic_case_summary_pdf(
+        app=app,
+        audit_events=audit_events,
+        evc_tasks=evc_tasks,
+        compliance_obligations=compliance_obs,
+    )
+    checksum = hashlib.sha256(pdf_bytes).hexdigest()
+
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'inline; filename="Case_Summary_{app.id}.pdf"',
+            "X-Document-Checksum-SHA256": checksum,
+            "Cache-Control": "private, max-age=60",
+        },
+    )
+
+
+@router.get("/{id}/letter")
+def get_application_official_letter_pdf(
+    id: str,
+    letter_type: Optional[str] = Query(None, description="Explicit letter type: 'eoa' or 'deficiency'"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Generate and stream official regulatory memos:
+    1. AICTE Extension of Approval (EoA) / Sanction Order (if Approved)
+    2. Statutory Deficiency Notice under Rule WF-02 (if Returned)
+    Edge Case: Unapproved applications cannot generate an EoA.
+    """
+    app = db.query(Application).filter(Application.id == id).first()
+    if not app:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found")
+
+    verify_record_scope(current_user, app.institution)
+
+    audit_events = (
+        db.query(AuditEvent)
+        .filter(AuditEvent.target == app.id)
+        .order_by(AuditEvent.time.desc())
+        .all()
+    )
+
+    if letter_type == "eoa" or app.stage == "Approved":
+        if app.stage != "Approved":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Extension of Approval (EoA) sanction letter can only be generated for Approved applications (Current stage: '{app.stage}').",
+            )
+        pdf_bytes = generate_sanction_order_pdf(app=app, audit_events=audit_events)
+        doc_filename = f"Sanction_Order_EoA_{app.id}.pdf"
+
+    elif letter_type == "deficiency" or app.status == "Awaiting institution" or app.return_reason:
+        if not app.return_reason and app.status != "Awaiting institution":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Deficiency Notice can only be generated for applications returned under WF-02 with recorded deficiency grounds.",
+            )
+        pdf_bytes = generate_deficiency_notice_pdf(app=app, audit_events=audit_events)
+        doc_filename = f"Deficiency_Notice_{app.id}.pdf"
+
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"No official sanction or deficiency letter applicable for application in stage '{app.stage}' (Status: '{app.status}').",
+        )
+
+    checksum = hashlib.sha256(pdf_bytes).hexdigest()
+
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'inline; filename="{doc_filename}"',
+            "X-Document-Checksum-SHA256": checksum,
+            "Cache-Control": "private, max-age=60",
+        },
+    )
+

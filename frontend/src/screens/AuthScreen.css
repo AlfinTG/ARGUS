@@ -1,0 +1,650 @@
+/* ── AuthScreen.css — ARGUS Minimal Editorial Auth Portal ─────────────────── */
+
+.argus-auth-container {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  background: #ffffff;
+  color: #111827;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  z-index: 2000;
+  overflow: hidden;
+}
+
+/* ── Left Editorial Panel ─────────────────────────────────────────────────── */
+
+.argus-auth-left {
+  flex: 1 1 50%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-end;
+  padding: 4rem 4.5rem;
+  border-right: 1px solid #f1f2f4;
+  background: #ffffff;
+  overflow-y: auto;
+}
+
+.argus-auth-left-content {
+  width: 100%;
+  max-width: 490px;
+  display: flex;
+  flex-direction: column;
+  min-height: 80vh;
+  justify-content: space-between;
+}
+
+/* Brand row */
+.argus-brand-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 3.5rem;
+}
+
+.argus-shield-icon {
+  flex-shrink: 0;
+  color: #003580;
+}
+
+.argus-brand-title {
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: #111827;
+}
+
+/* Editorial Headline */
+.argus-editorial-headline {
+  font-family: 'Newsreader', Georgia, Cambria, 'Times New Roman', serif;
+  font-size: 38px;
+  font-weight: 600;
+  line-height: 1.22;
+  color: #111827;
+  letter-spacing: -0.015em;
+  margin: 0 0 1.25rem 0;
+}
+
+/* Description */
+.argus-editorial-description {
+  font-size: 14.5px;
+  line-height: 1.65;
+  color: #4b5563;
+  margin: 0 0 2.75rem 0;
+}
+
+/* Three Feature Pillars */
+.argus-pillars-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin-bottom: 3rem;
+}
+
+.argus-pillar-item {
+  border-left: 2px solid #e5e7eb;
+  padding-left: 1.1rem;
+  transition: border-color 0.2s ease;
+}
+
+.argus-pillar-item:hover {
+  border-left-color: #003580;
+}
+
+.argus-pillar-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 0.25rem 0;
+}
+
+.argus-pillar-text {
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: #6b7280;
+  margin: 0;
+}
+
+/* Editorial Footer */
+.argus-editorial-footer {
+  font-size: 12.5px;
+  color: #9ca3af;
+  margin-top: auto;
+  padding-top: 1.5rem;
+}
+
+/* ── Right Form Panel ─────────────────────────────────────────────────────── */
+
+.argus-auth-right {
+  flex: 1 1 50%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 3rem 4.5rem;
+  background: #ffffff;
+  overflow-y: auto;
+}
+
+.argus-form-box {
+  width: 100%;
+  max-width: 380px;
+}
+
+/* Header */
+.argus-form-header {
+  margin-bottom: 2rem;
+}
+
+.argus-form-title {
+  font-family: 'Newsreader', Georgia, Cambria, 'Times New Roman', serif;
+  font-size: 28px;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 0.35rem 0;
+  letter-spacing: -0.01em;
+}
+
+.argus-form-subtitle {
+  font-size: 14px;
+  color: #6b7280;
+  margin: 0;
+}
+
+/* Feedback Alert */
+.argus-alert-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 0.9rem;
+  border-radius: 6px;
+  font-size: 13px;
+  line-height: 1.4;
+  margin-bottom: 1.25rem;
+}
+
+.argus-alert-box.error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+}
+
+.argus-alert-box.info {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #166534;
+}
+
+.argus-alert-close {
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0 0 0 8px;
+  opacity: 0.7;
+}
+
+.argus-alert-close:hover {
+  opacity: 1;
+}
+
+/* Form Fields */
+.argus-field {
+  margin-bottom: 1.15rem;
+}
+
+.argus-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 0.4rem;
+}
+
+.argus-hint {
+  font-size: 11.5px;
+  color: #9ca3af;
+  font-weight: 400;
+}
+
+.argus-input {
+  width: 100%;
+  box-sizing: border-box;
+  font-family: inherit;
+  font-size: 14px;
+  color: #111827;
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 0.65rem 0.85rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.argus-input::placeholder {
+  color: #9ca3af;
+}
+
+.argus-input:focus {
+  outline: none;
+  border-color: #003580;
+  box-shadow: 0 0 0 3px rgba(0, 53, 128, 0.12);
+}
+
+.argus-select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236B7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+  background-position: right 0.75rem center;
+  background-repeat: no-repeat;
+  background-size: 1.25em 1.25em;
+  padding-right: 2.5rem;
+}
+
+.argus-input-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.argus-input.has-toggle {
+  padding-right: 3.5rem;
+}
+
+.argus-toggle-btn {
+  position: absolute;
+  right: 0.85rem;
+  background: none;
+  border: none;
+  font-size: 13px;
+  font-weight: 500;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 0;
+  user-select: none;
+}
+
+.argus-toggle-btn:hover {
+  color: #111827;
+}
+
+/* Actions Row (Remember me + Forgot password) */
+.argus-form-actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 0.25rem;
+  margin-bottom: 1.35rem;
+}
+
+.argus-checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #4b5563;
+  cursor: pointer;
+  user-select: none;
+}
+
+.argus-checkbox {
+  width: 15px;
+  height: 15px;
+  border-radius: 4px;
+  border: 1px solid #d1d5db;
+  accent-color: #003580;
+  cursor: pointer;
+}
+
+.argus-text-link {
+  background: none;
+  border: none;
+  font-size: 13px;
+  color: #003580;
+  cursor: pointer;
+  padding: 0;
+  font-weight: 500;
+}
+
+.argus-text-link:hover {
+  text-decoration: underline;
+}
+
+/* Submit Primary Button */
+.argus-submit-btn {
+  width: 100%;
+  background: #003580;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 0.72rem 1rem;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.15s ease, transform 0.05s ease;
+}
+
+.argus-submit-btn:hover:not(:disabled) {
+  background: #002060;
+}
+
+.argus-submit-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.argus-submit-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+/* Divider */
+.argus-divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 1.25rem 0;
+  color: #9ca3af;
+  font-size: 13px;
+}
+
+.argus-divider::before,
+.argus-divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.argus-divider span {
+  padding: 0 0.75rem;
+}
+
+/* Google Button */
+.argus-google-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: #ffffff;
+  color: #1f2937;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 0.65rem 1rem;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.argus-google-btn:hover:not(:disabled) {
+  background: #f9fafb;
+  border-color: #9ca3af;
+}
+
+.argus-google-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.argus-google-icon {
+  flex-shrink: 0;
+}
+
+/* Switch Mode Link */
+.argus-switch-mode {
+  text-align: center;
+  margin-top: 1.25rem;
+  font-size: 13.5px;
+  color: #6b7280;
+}
+
+.argus-inline-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #003580;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: inherit;
+}
+
+.argus-inline-link:hover {
+  text-decoration: underline;
+}
+
+/* Password Strength Meter */
+.argus-strength-meter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 0.4rem;
+}
+
+.argus-strength-bars {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+}
+
+.argus-strength-bar {
+  height: 4px;
+  flex: 1;
+  background: #e5e7eb;
+  border-radius: 2px;
+  transition: background 0.2s ease;
+}
+
+.argus-strength-bar.weak { background: #ef4444; }
+.argus-strength-bar.fair { background: #f59e0b; }
+.argus-strength-bar.good { background: #3b82f6; }
+.argus-strength-bar.strong { background: #10b981; }
+
+.argus-strength-label {
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.argus-strength-label.weak { color: #ef4444; }
+.argus-strength-label.fair { color: #f59e0b; }
+.argus-strength-label.good { color: #3b82f6; }
+.argus-strength-label.strong { color: #10b981; }
+
+/* ── Collapsible Demo Personas ────────────────────────────────────────────── */
+
+.argus-demo-toggle-section {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #f1f2f4;
+}
+
+.argus-demo-accordion-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #374151;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.argus-demo-accordion-btn:hover {
+  color: #003580;
+}
+
+.argus-demo-arrow {
+  font-size: 9px;
+  color: #6b7280;
+  transition: transform 0.15s ease;
+}
+
+.argus-persona-tray {
+  margin-top: 1rem;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 0.85rem;
+  animation: argus-tray-fade 0.2s ease-out;
+}
+
+@keyframes argus-tray-fade {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.argus-persona-tray-intro {
+  font-size: 11.5px;
+  color: #6b7280;
+  margin: 0 0 0.65rem 0;
+}
+
+.argus-persona-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 250px;
+  overflow-y: auto;
+}
+
+.argus-persona-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition: all 0.15s ease;
+}
+
+.argus-persona-row:hover:not(:disabled) {
+  border-color: #003580;
+  background: #f0fdf9;
+  transform: translateX(2px);
+}
+
+.argus-persona-row:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.argus-persona-avatar {
+  font-size: 18px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.argus-persona-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.argus-persona-topline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.argus-persona-name {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.argus-persona-role-badge {
+  font-size: 10.5px;
+  font-weight: 500;
+  background: #f3f4f6;
+  color: #374151;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.argus-persona-desc {
+  display: block;
+  font-size: 11px;
+  color: #6b7280;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.argus-persona-action {
+  flex-shrink: 0;
+  color: #003580;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.argus-enter-arrow {
+  opacity: 0.6;
+}
+
+.argus-persona-row:hover .argus-enter-arrow {
+  opacity: 1;
+}
+
+.argus-spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(0, 53, 128, 0.2);
+  border-top-color: #003580;
+  border-radius: 50%;
+  animation: argus-spin 0.6s linear infinite;
+}
+
+@keyframes argus-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Responsive Behavior ──────────────────────────────────────────────────── */
+
+@media (max-width: 960px) {
+  .argus-auth-container {
+    flex-direction: column;
+    overflow-y: auto;
+  }
+
+  .argus-auth-left {
+    flex: none;
+    padding: 2.5rem 2rem 1.5rem;
+    align-items: center;
+    border-right: none;
+    border-bottom: 1px solid #f1f2f4;
+  }
+
+  .argus-auth-left-content {
+    min-height: auto;
+    max-width: 100%;
+  }
+
+  .argus-editorial-headline {
+    font-size: 28px;
+  }
+
+  .argus-pillars-list {
+    margin-bottom: 1.5rem;
+  }
+
+  .argus-auth-right {
+    flex: none;
+    padding: 2rem;
+    justify-content: center;
+  }
+}

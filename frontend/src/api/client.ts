@@ -7,6 +7,7 @@ import type {
   AuditEvent,
   AutomationRule,
   DemoSettings,
+  FileUploadResult,
 } from '../types/domain';
 import type { RoleType } from '../types';
 
@@ -70,6 +71,12 @@ function transformCompliance(raw: any): ComplianceObligation {
     verification: raw.verification,
     reviewerRole: raw.reviewer_role,
     note: raw.note || '',
+    fileName: raw.file_name || undefined,
+    filePath: raw.file_path || undefined,
+    fileSize: raw.file_size || undefined,
+    mimeType: raw.mime_type || undefined,
+    checksumSha256: raw.checksum_sha256 || undefined,
+    uploadedAt: raw.uploaded_at || undefined,
   };
 }
 
@@ -95,6 +102,12 @@ function transformDoc(raw: any): DocumentRecord {
     renewalStatus: raw.renewal_status,
     reviewStatus: raw.review_status,
     ownerRole: raw.owner_role,
+    fileName: raw.file_name || undefined,
+    filePath: raw.file_path || undefined,
+    fileSize: raw.file_size || undefined,
+    mimeType: raw.mime_type || undefined,
+    checksumSha256: raw.checksum_sha256 || undefined,
+    uploadedAt: raw.uploaded_at || undefined,
   };
 }
 
@@ -147,6 +160,35 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
   return resp.json();
 }
 
+async function uploadRequest<T>(endpoint: string, formData: FormData): Promise<T> {
+  const token = getAuthToken();
+  const headers: Record<string, string> = {};
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const url = `${BASE_URL}${endpoint}`;
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: formData,
+  });
+
+  if (!resp.ok) {
+    let errorDetail = `Upload failed with status ${resp.status}`;
+    try {
+      const errJson = await resp.json();
+      errorDetail = errJson.detail || errorDetail;
+    } catch {
+      // not JSON
+    }
+    throw new Error(errorDetail);
+  }
+
+  return resp.json();
+}
+
 export const api = {
   async checkHealth(): Promise<boolean> {
     try {
@@ -155,6 +197,71 @@ export const api = {
     } catch {
       return false;
     }
+  },
+
+  async login(email: string, pass: string): Promise<any> {
+    const resp = await fetch(`${BASE_URL}/api/v1/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password: pass }),
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ detail: 'Invalid credentials' }));
+      throw new Error(err.detail || 'Login failed');
+    }
+
+    const data = await resp.json();
+    setAuthToken(data.access_token);
+    return data;
+  },
+
+  async signup(payload: {
+    email: string;
+    password: string;
+    full_name: string;
+    role: string;
+    institution_id?: string;
+    region?: string;
+  }): Promise<any> {
+    const resp = await fetch(`${BASE_URL}/api/v1/auth/signup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ detail: 'Registration failed' }));
+      throw new Error(err.detail || 'Registration failed');
+    }
+
+    const data = await resp.json();
+    setAuthToken(data.access_token);
+    return data;
+  },
+
+  async googleAuth(payload: {
+    credential: string;
+    email?: string;
+    full_name?: string;
+    role?: string;
+    institution_id?: string;
+    region?: string;
+  }): Promise<any> {
+    const resp = await fetch(`${BASE_URL}/api/v1/auth/google`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ detail: 'Google sign-in failed' }));
+      throw new Error(err.detail || 'Google sign-in failed');
+    }
+
+    const data = await resp.json();
+    setAuthToken(data.access_token);
+    return data;
   },
 
   async authenticateRole(role: RoleType): Promise<string> {
@@ -263,6 +370,51 @@ export const api = {
   async getDocuments(): Promise<DocumentRecord[]> {
     const raw = await request<any[]>('/api/v1/documents/');
     return raw.map(transformDoc);
+  },
+
+  async uploadDocumentBinary(id: string, file: File): Promise<FileUploadResult> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const raw = await uploadRequest<any>(`/api/v1/documents/${id}/upload`, formData);
+    return {
+      id: raw.id,
+      fileName: raw.file_name,
+      filePath: raw.file_path,
+      fileSize: raw.file_size,
+      mimeType: raw.mime_type,
+      checksumSha256: raw.checksum_sha256,
+      previewUrl: raw.preview_url,
+    };
+  },
+
+  async uploadComplianceBinary(id: string, file: File): Promise<FileUploadResult> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const raw = await uploadRequest<any>(`/api/v1/compliance/${id}/upload`, formData);
+    return {
+      id: raw.id,
+      fileName: raw.file_name,
+      filePath: raw.file_path,
+      fileSize: raw.file_size,
+      mimeType: raw.mime_type,
+      checksumSha256: raw.checksum_sha256,
+      previewUrl: raw.preview_url,
+    };
+  },
+
+  async fetchSecureBlobUrl(endpoint: string): Promise<string> {
+    const token = getAuthToken();
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    const url = endpoint.startsWith('http') ? endpoint : `${BASE_URL}${endpoint}`;
+    const resp = await fetch(url, { headers });
+    if (!resp.ok) {
+      throw new Error(`Failed to load file preview: HTTP ${resp.status}`);
+    }
+    const blob = await resp.blob();
+    return URL.createObjectURL(blob);
   },
 
   async submitDocumentRenewal(id: string, note: string): Promise<DocumentRecord> {

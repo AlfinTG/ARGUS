@@ -51,6 +51,12 @@ class ComplianceResponse(BaseModel):
     verification: str
     reviewer_role: str
     note: Optional[str] = ""
+    file_name: Optional[str] = None
+    file_path: Optional[str] = None
+    file_size: Optional[int] = None
+    mime_type: Optional[str] = None
+    checksum_sha256: Optional[str] = None
+    uploaded_at: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -82,7 +88,16 @@ class EVCReportRequest(BaseModel):
     outcome: Literal["Satisfactory", "Deficiencies Noted"]
     remarks: Optional[str] = ""
 
-# Document Schemas
+# File & Document Schemas
+class FileUploadResponse(BaseModel):
+    id: str
+    file_name: str
+    file_path: str
+    file_size: int
+    mime_type: str
+    checksum_sha256: str
+    preview_url: str
+
 class DocumentResponse(BaseModel):
     id: str
     title: str
@@ -91,6 +106,12 @@ class DocumentResponse(BaseModel):
     renewal_status: str
     review_status: str
     owner_role: str
+    file_name: Optional[str] = None
+    file_path: Optional[str] = None
+    file_size: Optional[int] = None
+    mime_type: Optional[str] = None
+    checksum_sha256: Optional[str] = None
+    uploaded_at: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 

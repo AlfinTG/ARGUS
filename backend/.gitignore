@@ -1,0 +1,62 @@
+# ==============================================================================
+# ARGUS Backend — .gitignore
+# Python / FastAPI / SQLAlchemy / Alembic / SQLite / Pytest
+# ==============================================================================
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# C extensions
+*.c
+*.h
+
+# Virtual Environments
+.venv/
+venv/
+ENV/
+env/
+env.bak/
+venv.bak/
+
+# Environment Variables & Secrets
+.env
+.env.*
+!.env.example
+
+# Local SQLite databases & lock files
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+*.sqlite3-journal
+argus.db
+argus_fallback.db
+
+# Testing, Quality & Coverage
+.pytest_cache/
+.coverage
+.coverage.*
+.cache/
+htmlcov/
+.ruff_cache/
+.mypy_cache/
+
+# Logs
+logs/
+*.log
+
+# Distribution / Packaging
+build/
+dist/
+*.egg-info/
+
+# IDE / OS
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/launch.json
+*.swp

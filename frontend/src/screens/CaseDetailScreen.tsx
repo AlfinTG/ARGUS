@@ -6,13 +6,18 @@ import { GlassPanel } from '../components/GlassPanel';
 import { StatusBadge } from '../components/StatusBadge';
 import { StageTimeline } from '../components/StageTimeline';
 import { Modal } from '../components/Modal';
+import { DocumentViewerModal } from '../components/DocumentViewerModal';
 import { 
   ArrowLeft, 
   CheckCircle2, 
   AlertTriangle, 
   FileCheck, 
   Info,
-  CalendarClock
+  CalendarClock,
+  FileText,
+  Download,
+  ShieldCheck,
+  Eye,
 } from 'lucide-react';
 
 interface CaseDetailScreenProps {
@@ -41,6 +46,35 @@ export const CaseDetailScreen: React.FC<CaseDetailScreenProps> = ({ onNavigate, 
   const [isDecisionModalOpen, setIsDecisionModalOpen] = useState(false);
   const [decisionChoice, setDecisionChoice] = useState<'Approved' | 'Rejected'>('Approved');
   const [decisionRemarks, setDecisionRemarks] = useState('');
+
+  // Document Viewer Modal State
+  const [viewerConfig, setViewerConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    endpoint: string;
+    fileName: string;
+  } | null>(null);
+
+  const handleOpenSummary = () => {
+    setViewerConfig({
+      isOpen: true,
+      title: `Electronic Case Summary (ECS) — ${app.id}`,
+      endpoint: `/api/v1/applications/${app.id}/summary`,
+      fileName: `Case_Summary_${app.id}.pdf`,
+    });
+  };
+
+  const handleOpenLetter = (type?: 'eoa' | 'deficiency') => {
+    const isEoa = type === 'eoa' || app.stage === 'Approved';
+    setViewerConfig({
+      isOpen: true,
+      title: isEoa
+        ? `AICTE Extension of Approval (EoA) Sanction Order — ${app.id}`
+        : `Statutory Deficiency Notice (WF-02) — ${app.id}`,
+      endpoint: `/api/v1/applications/${app.id}/letter${type ? `?letter_type=${type}` : ''}`,
+      fileName: isEoa ? `Sanction_Order_EoA_${app.id}.pdf` : `Deficiency_Notice_${app.id}.pdf`,
+    });
+  };
 
   if (!app) {
     return (
@@ -123,7 +157,7 @@ export const CaseDetailScreen: React.FC<CaseDetailScreenProps> = ({ onNavigate, 
           <h1>{app.id}</h1>
           <p>{app.institution} · {app.region} Region · {app.type}</p>
         </div>
-        <div className="page-actions">
+        <div className="page-actions" style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
           <button 
             type="button" 
             className="btn btn-ghost" 
@@ -131,6 +165,49 @@ export const CaseDetailScreen: React.FC<CaseDetailScreenProps> = ({ onNavigate, 
           >
             <ArrowLeft size={16} /> Back to applications
           </button>
+
+          <button
+            type="button"
+            className="btn btn-sm btn-ghost"
+            onClick={handleOpenSummary}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              border: '1px solid var(--border-subtle)',
+              background: 'rgba(255, 255, 255, 0.04)',
+            }}
+            title="Download or preview official Electronic Case Summary dossier"
+          >
+            <FileText size={14} color="var(--accent-lime)" />
+            <span>Case Summary (ECS)</span>
+          </button>
+
+          {app.stage === 'Approved' && (
+            <button
+              type="button"
+              className="btn btn-sm btn-primary"
+              onClick={() => handleOpenLetter('eoa')}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+              title="Download AICTE Extension of Approval (EoA) Sanction Order"
+            >
+              <ShieldCheck size={14} />
+              <span>Download Sanction Order</span>
+            </button>
+          )}
+
+          {(app.returnReason || app.status === 'Awaiting institution') && (
+            <button
+              type="button"
+              className="btn btn-sm btn-danger"
+              onClick={() => handleOpenLetter('deficiency')}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+              title="Download Statutory Deficiency Notice memo"
+            >
+              <AlertTriangle size={14} />
+              <span>Download Deficiency Memo</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -380,6 +457,131 @@ export const CaseDetailScreen: React.FC<CaseDetailScreenProps> = ({ onNavigate, 
               </div>
             </div>
           </GlassPanel>
+        </div>
+
+        {/* Official Administrative Documents */}
+        <div>
+          <GlassPanel title="Official Administrative Documents" subtitle="Standardized Letters & Dossiers">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                Cryptographically signed regulatory communications with immutable audit correlation and verification QR code.
+              </div>
+
+              {/* ECS Button */}
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={handleOpenSummary}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '10px 14px',
+                  background: 'rgba(255, 255, 255, 0.04)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-md)',
+                  textAlign: 'left',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <FileText size={18} color="var(--accent-lime)" />
+                  <div>
+                    <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--text-white)' }}>
+                      Download Official Case Summary
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--text-faint)' }}>
+                      Full dossier with stage timestamps &amp; findings
+                    </div>
+                  </div>
+                </div>
+                <Eye size={14} color="var(--accent-lime)" />
+              </button>
+
+              {/* Sanction Order Button (EoA) */}
+              {app.stage === 'Approved' ? (
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => handleOpenLetter('eoa')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '10px 14px',
+                    textAlign: 'left',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <ShieldCheck size={18} />
+                    <div>
+                      <div style={{ fontSize: 12.5, fontWeight: 700 }}>
+                        Download Sanction Order (EoA)
+                      </div>
+                      <div style={{ fontSize: 11, opacity: 0.85 }}>
+                        Approved intake schedule &amp; QR verification
+                      </div>
+                    </div>
+                  </div>
+                  <Download size={14} />
+                </button>
+              ) : (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '10px 14px',
+                    background: 'rgba(0, 0, 0, 0.2)',
+                    border: '1px dashed var(--border-subtle)',
+                    borderRadius: 'var(--radius-md)',
+                    opacity: 0.65,
+                  }}
+                  title="Sanction order requires final Competent Authority approval"
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <ShieldCheck size={18} color="var(--text-faint)" />
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>
+                        Sanction Order (EoA) Locked
+                      </div>
+                      <div style={{ fontSize: 10.5, color: 'var(--text-faint)' }}>
+                        Available upon approval (Current: {app.stage})
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Deficiency Notice Button */}
+              {(app.returnReason || app.status === 'Awaiting institution') && (
+                <button
+                  type="button"
+                  className="btn btn-danger"
+                  onClick={() => handleOpenLetter('deficiency')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '10px 14px',
+                    textAlign: 'left',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <AlertTriangle size={18} />
+                    <div>
+                      <div style={{ fontSize: 12.5, fontWeight: 700 }}>
+                        Download Deficiency Notice (WF-02)
+                      </div>
+                      <div style={{ fontSize: 11, opacity: 0.85 }}>
+                        Statutory memo with rectification directives
+                      </div>
+                    </div>
+                  </div>
+                  <Download size={14} />
+                </button>
+              )}
+            </div>
+          </GlassPanel>
 
           <GlassPanel title="AICTE Invariants" subtitle="Regulatory Integrity Protocol">
             <ul style={{ paddingLeft: 18, fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6 }}>
@@ -508,6 +710,19 @@ export const CaseDetailScreen: React.FC<CaseDetailScreenProps> = ({ onNavigate, 
           </div>
         </div>
       </Modal>
+
+      {/* In-Browser Document Viewer Modal for ECS & Sanction/Deficiency Letters */}
+      {viewerConfig && (
+        <DocumentViewerModal
+          isOpen={viewerConfig.isOpen}
+          onClose={() => setViewerConfig(null)}
+          title={viewerConfig.title}
+          documentId={app.id}
+          endpoint={viewerConfig.endpoint}
+          fileName={viewerConfig.fileName}
+          mimeType="application/pdf"
+        />
+      )}
     </div>
   );
 };

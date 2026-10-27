@@ -54,6 +54,12 @@ export interface ComplianceObligation {
   verification: VerificationStatus;
   reviewerRole: RoleType;
   note: string;
+  fileName?: string;
+  filePath?: string;
+  fileSize?: number;
+  mimeType?: string;
+  checksumSha256?: string;
+  uploadedAt?: string;
 }
 
 export type EVCReportStatus = 'Not submitted' | 'Submitted' | 'Reviewed';
@@ -73,6 +79,16 @@ export interface EVCTask {
 export type DocumentRenewalStatus = 'Not submitted' | 'Submitted' | 'Verified';
 export type DocumentReviewStatus = 'Not reviewed' | 'Pending Verification' | 'Verified';
 
+export interface FileUploadResult {
+  id: string;
+  fileName: string;
+  filePath: string;
+  fileSize: number;
+  mimeType: string;
+  checksumSha256: string;
+  previewUrl: string;
+}
+
 export interface DocumentRecord {
   id: string;
   title: string;
@@ -81,6 +97,12 @@ export interface DocumentRecord {
   renewalStatus: DocumentRenewalStatus;
   reviewStatus: DocumentReviewStatus;
   ownerRole: RoleType;
+  fileName?: string;
+  filePath?: string;
+  fileSize?: number;
+  mimeType?: string;
+  checksumSha256?: string;
+  uploadedAt?: string;
 }
 
 export type AlertState = 'Open' | 'Acknowledged' | 'Resolved';

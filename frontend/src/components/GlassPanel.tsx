@@ -26,7 +26,9 @@ export const GlassPanel: React.FC<GlassPanelProps> = ({
           {action && <div className="panel-action">{action}</div>}
         </div>
       )}
-      {children}
+      <div className="panel-body">
+        {children}
+      </div>
     </div>
   );
 };

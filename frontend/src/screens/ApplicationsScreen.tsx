@@ -203,15 +203,31 @@ export const ApplicationsScreen: React.FC<ApplicationsScreenProps> = ({ onNaviga
               {filteredApps.map((app) => (
                 <tr key={app.id}>
                   <td>
-                    <span 
-                      className="table-id-link" 
+                    <div 
+                      className="table-college-title" 
                       onClick={() => handleOpenCase(app.id)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => e.key === 'Enter' && handleOpenCase(app.id)}
+                      title={`Open application for ${app.institution}`}
                     >
-                      {app.id}
-                    </span>
-                    <span className="table-subtext">
-                      {app.institution} · {app.region} · {app.type}
-                    </span>
+                      {app.institution}
+                    </div>
+                    <div className="table-subtext">
+                      <span 
+                        className="table-id-link" 
+                        onClick={() => handleOpenCase(app.id)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => e.key === 'Enter' && handleOpenCase(app.id)}
+                      >
+                        {app.id}
+                      </span>
+                      <span className="table-subtext-sep">·</span>
+                      <span>{app.region}</span>
+                      <span className="table-subtext-sep">·</span>
+                      <span>{app.type}</span>
+                    </div>
                   </td>
                   <td>
                     <span className="code-tag">{app.route}</span>
