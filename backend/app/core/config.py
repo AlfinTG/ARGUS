@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     JWT_SECRET: str = os.getenv("JWT_SECRET", "argus_jwt_super_secret_key_demo_sih26262_2026")
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24 hours
+    ENABLE_MOCK_AUTH: bool = True
 
     # CORS Allowed Origins
     CORS_ORIGINS: List[str] = [

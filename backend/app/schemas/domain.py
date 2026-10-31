@@ -83,10 +83,18 @@ class EVCTaskResponse(BaseModel):
 class EVCScheduleRequest(BaseModel):
     visit_date: str
     panel: str
+    inspection_mode: Optional[str] = "Physical Visit"
+    chairman: Optional[str] = None
+    expert_1: Optional[str] = None
+    expert_2: Optional[str] = None
 
 class EVCReportRequest(BaseModel):
     outcome: Literal["Satisfactory", "Deficiencies Noted"]
     remarks: Optional[str] = ""
+    infrastructure_ok: Optional[bool] = True
+    laboratories_ok: Optional[bool] = True
+    library_ok: Optional[bool] = True
+    faculty_cadre_ok: Optional[bool] = True
 
 # File & Document Schemas
 class FileUploadResponse(BaseModel):
@@ -122,6 +130,12 @@ class DocumentVerifyRequest(BaseModel):
     verified: bool
     remarks: Optional[str] = ""
 
+# Regional Review Schema
+class RegionalReviewRequest(BaseModel):
+    recommendation: Literal["Endorse", "Escalate", "Return"]
+    remarks: str
+    compliance_ids_verified: Optional[List[str]] = []
+
 # Audit Schemas
 class AuditEventResponse(BaseModel):
     id: str
@@ -132,5 +146,40 @@ class AuditEventResponse(BaseModel):
     rule: str
     detail: str
     correlation: str
-
     model_config = ConfigDict(from_attributes=True)
+
+# Institutional Application Filing Schemas (APH 2026-27)
+class CourseIntakeItem(BaseModel):
+    program: str
+    level: str  # UG, PG, Diploma
+    title: str
+    intake: int
+
+class StatutoryDocumentItem(BaseModel):
+    doc_type: str  # registered_lease_deed, fire_safety_noc, faculty_cadre_undertaking
+    title: str
+    file_name: str
+    checksum_sha256: str
+    file_size: Optional[int] = None
+    uploaded_at: Optional[str] = None
+
+class InstitutionalFilingRequest(BaseModel):
+    aicte_permanent_id: str
+    institution_name: str
+    region: str
+    route: str
+    app_type: Optional[str] = "Extension of Approval (EoA)"
+    due_date: Optional[str] = None
+    courses: List[CourseIntakeItem]
+    documents: List[StatutoryDocumentItem]
+    affidavit_accepted: bool
+    signatory_designation: str
+
+class InstitutionalFilingResponse(BaseModel):
+    application: ApplicationResponse
+    correlation_token: str
+    total_intake: int
+    courses_count: int
+    documents_count: int
+    message: str
+

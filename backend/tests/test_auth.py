@@ -124,19 +124,29 @@ def test_signup_success_institution_user():
     assert data["email"] == "principal@pune-tech.edu.in"
     assert data["full_name"] == "Prof. Anand Kulkarni"
 
-def test_signup_success_regional_officer():
-    payload = {
-        "email": "ro.north@aicte.gov.in",
+def test_signup_forbidden_for_non_institution_roles():
+    # Attempting to self-register as Regional Officer
+    payload_ro = {
+        "email": "attacker.ro@aicte.gov.in",
         "password": "SecurePassword123!",
-        "full_name": "Dr. Manpreet Singh",
+        "full_name": "Attacker RO",
         "role": "Regional Officer",
         "region": "North",
     }
-    resp = client.post("/api/v1/auth/signup", json=payload)
-    assert resp.status_code == 201
-    data = resp.json()
-    assert data["role"] == "Regional Officer"
-    assert data["region"] == "North"
+    resp_ro = client.post("/api/v1/auth/signup", json=payload_ro)
+    assert resp_ro.status_code == 403
+    assert "strictly permitted for 'Institution User' only" in resp_ro.json()["detail"]
+
+    # Attempting to self-register as System Operator
+    payload_admin = {
+        "email": "attacker.admin@aicte.gov.in",
+        "password": "SecurePassword123!",
+        "full_name": "Attacker Admin",
+        "role": "System Operator",
+    }
+    resp_admin = client.post("/api/v1/auth/signup", json=payload_admin)
+    assert resp_admin.status_code == 403
+    assert "strictly permitted for 'Institution User' only" in resp_admin.json()["detail"]
 
 def test_signup_missing_institution_id():
     payload = {
@@ -150,18 +160,6 @@ def test_signup_missing_institution_id():
     assert resp.status_code == 400
     assert "institution_id is required" in resp.json()["detail"]
 
-def test_signup_missing_region():
-    payload = {
-        "email": "test.ro@aicte.gov.in",
-        "password": "SecurePassword123!",
-        "full_name": "Test Officer",
-        "role": "Regional Officer",
-        "region": "",  # Empty
-    }
-    resp = client.post("/api/v1/auth/signup", json=payload)
-    assert resp.status_code == 400
-    assert "region is required" in resp.json()["detail"]
-
 def test_signup_invalid_role():
     payload = {
         "email": "hacker@evil.com",
@@ -170,15 +168,16 @@ def test_signup_invalid_role():
         "role": "Super Admin Prime",
     }
     resp = client.post("/api/v1/auth/signup", json=payload)
-    assert resp.status_code == 400
-    assert "Invalid role" in resp.json()["detail"]
+    assert resp.status_code == 403
+    assert "strictly permitted for 'Institution User' only" in resp.json()["detail"]
 
 def test_signup_duplicate_email():
     payload = {
-        "email": "scrutiny@aicte.gov.in",  # already in seed DB
+        "email": "institution@shivneri.edu.in",  # already in seed DB
         "password": "AnotherPassword123!",
-        "full_name": "Duplicate Scrutiny",
-        "role": "Scrutiny Officer",
+        "full_name": "Duplicate Institution User",
+        "role": "Institution User",
+        "institution_id": "INST-014",
     }
     resp = client.post("/api/v1/auth/signup", json=payload)
     assert resp.status_code == 400

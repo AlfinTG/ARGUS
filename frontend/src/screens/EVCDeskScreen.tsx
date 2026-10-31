@@ -27,11 +27,18 @@ export const EVCDeskScreen: React.FC<EVCDeskScreenProps> = ({ onNavigate, onToas
   const [selectedEvc, setSelectedEvc] = useState<EVCTask | null>(null);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [visitDateInput, setVisitDateInput] = useState('2026-11-04');
+  const [inspectionMode, setInspectionMode] = useState<'Physical Visit' | 'Virtual Hybrid Inspection'>('Physical Visit');
   const [panelInput, setPanelInput] = useState('Prof. A. Kulkarni (Chairman), Dr. R. Verma (Subject Expert)');
 
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [reportOutcome, setReportOutcome] = useState<'Satisfactory' | 'Deficiencies Noted'>('Satisfactory');
   const [reportRemarks, setReportRemarks] = useState('');
+
+  // Rubric Checklist
+  const [infrastructureOk, setInfrastructureOk] = useState(true);
+  const [laboratoriesOk, setLaboratoriesOk] = useState(true);
+  const [libraryOk, setLibraryOk] = useState(true);
+  const [facultyCadreOk, setFacultyCadreOk] = useState(true);
 
   const totalTasks = state.evcs.length;
   const scheduledCount = state.evcs.filter((e) => e.status === 'Scheduled').length;
@@ -60,8 +67,8 @@ export const EVCDeskScreen: React.FC<EVCDeskScreenProps> = ({ onNavigate, onToas
       return;
     }
 
-    scheduleEVC(selectedEvc.id, visitDateInput, panelInput.trim());
-    onToast(`Visit scheduled for ${selectedEvc.appId} on ${dateLabel(visitDateInput)}.`, 'success');
+    scheduleEVC(selectedEvc.id, visitDateInput, panelInput.trim(), inspectionMode);
+    onToast(`Visit scheduled for ${selectedEvc.appId} on ${dateLabel(visitDateInput)} (${inspectionMode}).`, 'success');
     setIsScheduleModalOpen(false);
   };
 
@@ -69,8 +76,18 @@ export const EVCDeskScreen: React.FC<EVCDeskScreenProps> = ({ onNavigate, onToas
     e.preventDefault();
     if (!selectedEvc) return;
 
-    submitEVCReport(selectedEvc.id, reportOutcome);
-    onToast(`EVC Report submitted (${reportOutcome}) for ${selectedEvc.appId}. Linked application advanced to next stage!`, 'success');
+    submitEVCReport(selectedEvc.id, reportOutcome, reportRemarks.trim(), {
+      infrastructure_ok: infrastructureOk,
+      laboratories_ok: laboratoriesOk,
+      library_ok: libraryOk,
+      faculty_cadre_ok: facultyCadreOk,
+    });
+    onToast(
+      reportOutcome === 'Satisfactory'
+        ? `EVC Report submitted (${reportOutcome}) for ${selectedEvc.appId}. Linked application advanced to next stage!`
+        : `EVC Report submitted (${reportOutcome}) for ${selectedEvc.appId}. Deficiencies recorded for regional review.`,
+      reportOutcome === 'Satisfactory' ? 'success' : 'warning'
+    );
     setIsReportModalOpen(false);
   };
 
@@ -246,16 +263,31 @@ export const EVCDeskScreen: React.FC<EVCDeskScreenProps> = ({ onNavigate, onToas
         }
       >
         <form onSubmit={handleScheduleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-white)' }}>
-              Visit Date *
-            </label>
-            <input
-              type="date"
-              value={visitDateInput}
-              onChange={(e) => setVisitDateInput(e.target.value)}
-              required
-            />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-white)' }}>
+                Visit Date *
+              </label>
+              <input
+                type="date"
+                value={visitDateInput}
+                onChange={(e) => setVisitDateInput(e.target.value)}
+                required
+              />
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-white)' }}>
+                Inspection Mode (APH 4.2)
+              </label>
+              <select
+                value={inspectionMode}
+                onChange={(e) => setInspectionMode(e.target.value as any)}
+              >
+                <option value="Physical Visit">Physical On-Site Inspection</option>
+                <option value="Virtual Hybrid Inspection">Virtual Hybrid Inspection</option>
+              </select>
+            </div>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -270,6 +302,9 @@ export const EVCDeskScreen: React.FC<EVCDeskScreenProps> = ({ onNavigate, onToas
               style={{ width: '100%', resize: 'vertical' }}
               required
             />
+            <span style={{ fontSize: 11, color: 'var(--text-faint)' }}>
+              Panel must include at least two certified experts (Chairman + Subject Expert/Industry Nominee).
+            </span>
           </div>
         </form>
       </Modal>
@@ -326,6 +361,45 @@ export const EVCDeskScreen: React.FC<EVCDeskScreenProps> = ({ onNavigate, onToas
                 Deficiencies Noted
               </label>
             </div>
+          </div>
+
+          {/* Regulatory Rubric Checklist */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 12, background: 'rgba(0,0,0,0.2)', borderRadius: 'var(--radius-sm)' }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-white)' }}>
+              AICTE On-Site Inspection Verification Rubric
+            </div>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--text-white)', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={infrastructureOk}
+                onChange={(e) => setInfrastructureOk(e.target.checked)}
+              />
+              Instructional Infrastructure (Classrooms, tutorial halls &amp; built-up area)
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--text-white)', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={laboratoriesOk}
+                onChange={(e) => setLaboratoriesOk(e.target.checked)}
+              />
+              Laboratories &amp; Technical Equipment (Functional machines &amp; stock registers)
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--text-white)', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={libraryOk}
+                onChange={(e) => setLibraryOk(e.target.checked)}
+              />
+              Library Volumes &amp; Digital Subscriptions (National/International journals)
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--text-white)', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={facultyCadreOk}
+                onChange={(e) => setFacultyCadreOk(e.target.checked)}
+              />
+              Faculty Cadre In-Person Verification (Professor/Associate/Assistant ratios)
+            </label>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>

@@ -27,6 +27,7 @@ export interface Translations {
   navConfig: string;
   navOverview: string;
   navApplications: string;
+  navRegional: string;
   navCompliance: string;
   navEvc: string;
   navDocuments: string;
@@ -44,6 +45,8 @@ export interface Translations {
   overviewDesc: string;
   applicationsTitle: string;
   applicationsDesc: string;
+  regionalTitle: string;
+  regionalDesc: string;
   caseTitle: string;
   caseDesc: string;
   complianceTitle: string;
@@ -113,6 +116,7 @@ const translations: Record<Language, Translations> = {
     navConfig: 'Configuration',
     navOverview: 'Overview',
     navApplications: 'Applications',
+    navRegional: 'Regional desk',
     navCompliance: 'Compliance',
     navEvc: 'EVC desk',
     navDocuments: 'Documents',
@@ -128,6 +132,8 @@ const translations: Record<Language, Translations> = {
     overviewDesc: 'Pending approval stages, statutory deadlines, EVC queues and escalations.',
     applicationsTitle: 'Case management',
     applicationsDesc: 'All active applications sorted by statutory priority.',
+    regionalTitle: 'Regional Office review & endorsement',
+    regionalDesc: 'Regional dossier inspection, compliance verification, and statutory recommendations.',
     caseTitle: 'Case progression & scrutiny',
     caseDesc: 'Full lifecycle dossier and scrutiny worksheet.',
     complianceTitle: 'Institutional obligations & undertakings',
@@ -193,6 +199,7 @@ const translations: Record<Language, Translations> = {
     navConfig: 'कॉन्फ़िगरेशन',
     navOverview: 'अवलोकन',
     navApplications: 'आवेदन',
+    navRegional: 'क्षेत्रीय डेस्क',
     navCompliance: 'अनुपालन',
     navEvc: 'ई.वी.सी. डेस्क',
     navDocuments: 'दस्तावेज़',
@@ -208,6 +215,8 @@ const translations: Record<Language, Translations> = {
     overviewDesc: 'लंबित अनुमोदन चरण, सांविधिक समय-सीमा, ई.वी.सी. कतारें एवं एस्केलेशन।',
     applicationsTitle: 'केस प्रबंधन',
     applicationsDesc: 'सांविधिक प्राथमिकता के अनुसार क्रमबद्ध सभी सक्रिय आवेदन।',
+    regionalTitle: 'क्षेत्रीय कार्यालय समीक्षा एवं अनुशंसा',
+    regionalDesc: 'क्षेत्रीय डोजियर निरीक्षण, अनुपालन सत्यापन एवं सांविधिक सिफारिशें।',
     caseTitle: 'केस प्रगति एवं संवीक्षा',
     caseDesc: 'पूर्ण जीवनचक्र डोजियर एवं संवीक्षा कार्यपत्रक।',
     complianceTitle: 'संस्थागत दायित्व एवं वचनबद्धता',

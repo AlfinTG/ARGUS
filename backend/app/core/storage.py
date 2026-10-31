@@ -167,12 +167,17 @@ async def process_and_save_upload(
 def resolve_stored_file(relative_path: str) -> Path:
     """
     Safely resolve a stored file path, verifying it cannot escape BASE_UPLOAD_DIR.
+    Handles relative paths, leading slashes, and 'uploads/' prefixes gracefully.
     """
     if not relative_path:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File path not specified.")
 
+    clean_rel = relative_path.strip().lstrip("/\\")
+    if clean_rel.startswith("uploads/"):
+        clean_rel = clean_rel[len("uploads/"):]
+
     base_resolved = BASE_UPLOAD_DIR.resolve()
-    target_resolved = (BASE_UPLOAD_DIR / relative_path).resolve()
+    target_resolved = (BASE_UPLOAD_DIR / clean_rel).resolve()
 
     try:
         target_resolved.relative_to(base_resolved)

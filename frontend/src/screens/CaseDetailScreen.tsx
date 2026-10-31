@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import type { ScreenType } from '../types/index';
+import type { DocumentRecord, ComplianceObligation } from '../types/domain';
 import { ROUTES } from '../data/seedData';
 import { GlassPanel } from '../components/GlassPanel';
 import { StatusBadge } from '../components/StatusBadge';
@@ -18,6 +19,8 @@ import {
   Download,
   ShieldCheck,
   Eye,
+  Check,
+  XCircle,
 } from 'lucide-react';
 
 interface CaseDetailScreenProps {
@@ -34,14 +37,20 @@ export const CaseDetailScreen: React.FC<CaseDetailScreenProps> = ({ onNavigate, 
     completeStage, 
     returnForDeficiency, 
     resubmitApplication, 
-    recordDecision 
+    recordDecision,
+    verifyDocumentRenewal,
+    setRole,
   } = useApp();
 
   const app = state.apps.find((a) => a.id === state.selectedAppId) || state.apps[0];
 
   // Modals State
   const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
+  const [deficiencyCategory, setDeficiencyCategory] = useState('');
   const [returnReasonInput, setReturnReasonInput] = useState('');
+
+  const [isResubmitModalOpen, setIsResubmitModalOpen] = useState(false);
+  const [resubmitRemarks, setResubmitRemarks] = useState('');
 
   const [isDecisionModalOpen, setIsDecisionModalOpen] = useState(false);
   const [decisionChoice, setDecisionChoice] = useState<'Approved' | 'Rejected'>('Approved');
@@ -53,6 +62,10 @@ export const CaseDetailScreen: React.FC<CaseDetailScreenProps> = ({ onNavigate, 
     title: string;
     endpoint: string;
     fileName: string;
+    documentId?: string;
+    fileSize?: number;
+    checksumSha256?: string;
+    uploadedAt?: string;
   } | null>(null);
 
   const handleOpenSummary = () => {
@@ -61,19 +74,85 @@ export const CaseDetailScreen: React.FC<CaseDetailScreenProps> = ({ onNavigate, 
       title: `Electronic Case Summary (ECS) — ${app.id}`,
       endpoint: `/api/v1/applications/${app.id}/summary`,
       fileName: `Case_Summary_${app.id}.pdf`,
+      documentId: app.id,
     });
   };
 
   const handleOpenLetter = (type?: 'eoa' | 'deficiency') => {
     const isEoa = type === 'eoa' || app.stage === 'Approved';
+    const isRejected = app.stage === 'Rejected';
     setViewerConfig({
       isOpen: true,
       title: isEoa
         ? `AICTE Extension of Approval (EoA) Sanction Order — ${app.id}`
+        : isRejected
+        ? `AICTE Statutory Rejection Order — ${app.id}`
         : `Statutory Deficiency Notice (WF-02) — ${app.id}`,
       endpoint: `/api/v1/applications/${app.id}/letter${type ? `?letter_type=${type}` : ''}`,
-      fileName: isEoa ? `Sanction_Order_EoA_${app.id}.pdf` : `Deficiency_Notice_${app.id}.pdf`,
+      fileName: isEoa
+        ? `Sanction_Order_EoA_${app.id}.pdf`
+        : isRejected
+        ? `Rejection_Order_${app.id}.pdf`
+        : `Deficiency_Notice_${app.id}.pdf`,
+      documentId: app.id,
     });
+  };
+
+  // Case Dossier Documents & Compliance Obligations
+  const caseDocs = useMemo(() => {
+    if (!app) return [];
+    const inst = app.institution.toLowerCase().trim();
+    const appIdSeq = app.id.replace('APP-2026-', '');
+    return state.docs.filter((d) => {
+      const docInst = d.institution.toLowerCase().trim();
+      return (
+        docInst === inst ||
+        docInst.includes(inst) ||
+        inst.includes(docInst) ||
+        (d.id.includes(appIdSeq) && appIdSeq.length > 0)
+      );
+    });
+  }, [state.docs, app]);
+
+  const caseCompliance = useMemo(() => {
+    if (!app) return [];
+    return state.compliance.filter((c) => c.appId === app.id);
+  }, [state.compliance, app]);
+
+  const handlePreviewDoc = (doc: DocumentRecord) => {
+    setViewerConfig({
+      isOpen: true,
+      title: `${doc.title} — ${doc.institution}`,
+      endpoint: `/api/v1/documents/${doc.id}/file`,
+      fileName: doc.fileName || `${doc.title.replace(/\s+/g, '_')}.pdf`,
+      documentId: doc.id,
+      fileSize: doc.fileSize,
+      checksumSha256: doc.checksumSha256,
+      uploadedAt: doc.uploadedAt,
+    });
+  };
+
+  const handlePreviewCompliance = (cmp: ComplianceObligation) => {
+    setViewerConfig({
+      isOpen: true,
+      title: `${cmp.title} — ${cmp.institution}`,
+      endpoint: `/api/v1/compliance/${cmp.id}/file`,
+      fileName: cmp.fileName || `${cmp.title.replace(/\s+/g, '_')}.pdf`,
+      documentId: cmp.id,
+      fileSize: cmp.fileSize,
+      checksumSha256: cmp.checksumSha256,
+      uploadedAt: cmp.uploadedAt,
+    });
+  };
+
+  const handleVerifyDoc = async (docId: string, verified: boolean) => {
+    await verifyDocumentRenewal(docId, verified);
+    onToast(
+      verified 
+        ? 'Document verified and approved under AICTE statutory norms.' 
+        : 'Document marked as deficient / pending rectification.',
+      verified ? 'success' : 'warning'
+    );
   };
 
   if (!app) {
@@ -94,8 +173,8 @@ export const CaseDetailScreen: React.FC<CaseDetailScreenProps> = ({ onNavigate, 
     ? routeStages[currentStageIndex + 1] 
     : null;
 
-  const handleCompleteStage = () => {
-    const res = completeStage(app.id);
+  const handleCompleteStage = async () => {
+    const res = await completeStage(app.id);
     if (res.ok) {
       onToast(`Application ${app.id} successfully advanced to next stage!`, 'success');
     } else {
@@ -103,12 +182,12 @@ export const CaseDetailScreen: React.FC<CaseDetailScreenProps> = ({ onNavigate, 
     }
   };
 
-  const handleReturnSubmit = () => {
+  const handleReturnSubmit = async () => {
     if (!returnReasonInput.trim()) {
       onToast('A deficiency return requires an explicit, meaningful reason.', 'warning');
       return;
     }
-    const res = returnForDeficiency(app.id, returnReasonInput);
+    const res = await returnForDeficiency(app.id, returnReasonInput);
     if (res.ok) {
       onToast(`Deficiency recorded for ${app.id}. Assigned to institution for response.`, 'info');
       setIsReturnModalOpen(false);
@@ -118,17 +197,23 @@ export const CaseDetailScreen: React.FC<CaseDetailScreenProps> = ({ onNavigate, 
     }
   };
 
-  const handleResubmit = () => {
-    const res = resubmitApplication(app.id);
+  const handleConfirmResubmit = async () => {
+    if (!resubmitRemarks.trim()) {
+      onToast('Please describe the corrective actions taken.', 'warning');
+      return;
+    }
+    const res = await resubmitApplication(app.id, resubmitRemarks.trim());
     if (res.ok) {
-      onToast(`Institution response submitted for ${app.id}. Scrutiny resumed!`, 'success');
+      onToast(`Institution response submitted for ${app.id}. Scrutiny resumed at ${app.resumeStage || 'Initial Scrutiny'}!`, 'success');
+      setIsResubmitModalOpen(false);
+      setResubmitRemarks('');
     } else {
       onToast(res.reason || 'Resubmission failed.', 'warning');
     }
   };
 
-  const handleDecisionSubmit = () => {
-    const res = recordDecision(app.id, decisionChoice, decisionRemarks);
+  const handleDecisionSubmit = async () => {
+    const res = await recordDecision(app.id, decisionChoice, decisionRemarks);
     if (res.ok) {
       onToast(`Statutory authority decision recorded: ${decisionChoice} for ${app.id}`, 'success');
       setIsDecisionModalOpen(false);
@@ -196,7 +281,20 @@ export const CaseDetailScreen: React.FC<CaseDetailScreenProps> = ({ onNavigate, 
             </button>
           )}
 
-          {(app.returnReason || app.status === 'Awaiting institution') && (
+          {app.stage === 'Rejected' && (
+            <button
+              type="button"
+              className="btn btn-sm btn-danger"
+              onClick={() => handleOpenLetter('deficiency')}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+              title="Download Official Statutory Rejection Order"
+            >
+              <AlertTriangle size={14} />
+              <span>Download Rejection Order</span>
+            </button>
+          )}
+
+          {app.stage !== 'Rejected' && (app.returnReason || app.status === 'Awaiting institution') && (
             <button
               type="button"
               className="btn btn-sm btn-danger"
@@ -263,17 +361,39 @@ export const CaseDetailScreen: React.FC<CaseDetailScreenProps> = ({ onNavigate, 
         <div>
           {/* Stage Progression Timeline */}
           <GlassPanel title="Configured Route Progression" subtitle={`Profile: ${app.route}`}>
-            <StageTimeline stages={routeStages} currentStage={app.stage} />
+            <StageTimeline stages={routeStages} currentStage={app.stage} resumeStage={app.resumeStage} />
 
-            {/* Notice about next stage */}
-            <div className="notice-box notice-info" style={{ marginTop: 16 }}>
-              <Info size={16} style={{ flexShrink: 0, marginTop: 1 }} />
-              <div>
-                Next eligible stage:{' '}
-                <strong>{nextStage || 'No automatic next stage (Final Statutory Authority Scrutiny)'}</strong>.
-                AICTE statutory scrutinies remain human-verified.
+            {/* Notice about stage progression or finalized determination */}
+            {['Approved', 'Rejected'].includes(app.stage) ? (
+              <div 
+                style={{ 
+                  marginTop: 16, 
+                  padding: '12px 16px', 
+                  background: app.stage === 'Approved' ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                  border: `1px solid ${app.stage === 'Approved' ? 'rgba(34, 197, 94, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+                  borderRadius: 'var(--radius-md)',
+                  color: app.stage === 'Approved' ? 'var(--accent-lime)' : 'var(--accent-crimson)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                }}
+              >
+                {app.stage === 'Approved' ? <ShieldCheck size={18} /> : <AlertTriangle size={18} />}
+                <div>
+                  <strong>Statutory Determination Finalized:</strong> Application has been formally{' '}
+                  <strong>{app.stage}</strong> by the Competent Authority. All procedural scrutiny steps are concluded.
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="notice-box notice-info" style={{ marginTop: 16 }}>
+                <Info size={16} style={{ flexShrink: 0, marginTop: 1 }} />
+                <div>
+                  Next eligible stage:{' '}
+                  <strong>{nextStage || 'No automatic next stage (Final Statutory Authority Scrutiny)'}</strong>.
+                  AICTE statutory scrutinies remain human-verified.
+                </div>
+              </div>
+            )}
 
             {/* Deficiency Notice if active */}
             {app.returnReason && (
@@ -301,12 +421,42 @@ export const CaseDetailScreen: React.FC<CaseDetailScreenProps> = ({ onNavigate, 
 
             {/* Role-gated Action Bar */}
             <div style={{ marginTop: 24, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-              {app.stage === 'Institution Response' ? (
+              {['Approved', 'Rejected'].includes(app.stage) ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                  <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+                    Statutory determination concluded:{' '}
+                    <strong style={{ color: app.stage === 'Approved' ? 'var(--accent-lime)' : 'var(--accent-crimson)' }}>
+                      {app.stage}
+                    </strong>
+                    . Case lifecycle closed.
+                  </div>
+                  {app.stage === 'Approved' && (
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-primary"
+                      onClick={() => handleOpenLetter('eoa')}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                    >
+                      <ShieldCheck size={14} /> Download Sanction Order (EoA)
+                    </button>
+                  )}
+                  {app.stage === 'Rejected' && (
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-danger"
+                      onClick={() => handleOpenLetter('deficiency')}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                    >
+                      <AlertTriangle size={14} /> Download Rejection Order
+                    </button>
+                  )}
+                </div>
+              ) : app.stage === 'Institution Response' ? (
                 can('resubmit') ? (
                   <button 
                     type="button" 
                     className="btn btn-primary"
-                    onClick={handleResubmit}
+                    onClick={() => setIsResubmitModalOpen(true)}
                   >
                     <FileCheck size={16} /> Submit response & resume scrutiny
                   </button>
@@ -325,18 +475,38 @@ export const CaseDetailScreen: React.FC<CaseDetailScreenProps> = ({ onNavigate, 
                     <CheckCircle2 size={16} /> Record human decision
                   </button>
                 ) : (
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                    Case is pending final statutory determination. Switch role to <strong>Competent Authority</strong> to record approval/rejection.
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                      Case is pending final statutory determination.
+                    </span>
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-primary"
+                      onClick={() => setRole('Competent Authority')}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                    >
+                      <ShieldCheck size={14} /> Switch to Competent Authority &amp; Decide
+                    </button>
                   </div>
                 )
               ) : ['EVC Scheduling', 'EVC Report Review'].includes(app.stage) ? (
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+                  {app.stage === 'EVC Report Review' && can('regionalReview') && (
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={() => onNavigate('regional')}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                    >
+                      <FileCheck size={16} /> Regional Review & Endorsement
+                    </button>
+                  )}
                   <button 
                     type="button" 
-                    className="btn btn-primary"
+                    className="btn btn-ghost"
                     onClick={() => onNavigate('evc')}
                   >
-                    <CalendarClock size={16} /> Open EVC desk for visit scheduling
+                    <CalendarClock size={16} /> Open EVC desk
                   </button>
                   <button 
                     type="button" 
@@ -349,6 +519,16 @@ export const CaseDetailScreen: React.FC<CaseDetailScreenProps> = ({ onNavigate, 
                 </div>
               ) : (
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+                  {can('regionalReview') && ['Initial Scrutiny', 'SAC/SHC Review'].includes(app.stage) && (
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={() => onNavigate('regional')}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                    >
+                      <FileCheck size={16} /> Regional Review & Endorsement
+                    </button>
+                  )}
                   <button 
                     type="button" 
                     className="btn btn-primary"
@@ -370,6 +550,163 @@ export const CaseDetailScreen: React.FC<CaseDetailScreenProps> = ({ onNavigate, 
                       Current role ({state.role}) cannot perform scrutiny transitions.
                     </span>
                   )}
+                </div>
+              )}
+            </div>
+          </GlassPanel>
+
+          {/* Statutory Scrutiny Dossier & Regulatory Norms */}
+          <GlassPanel
+            title="Statutory Scrutiny Dossier"
+            subtitle={`${caseDocs.length} statutory document(s) & ${caseCompliance.length} compliance obligation(s)`}
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {/* Document List */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {caseDocs.map((doc) => {
+                  const hasFile = Boolean(doc.fileName || doc.renewalStatus !== 'Not submitted');
+                  return (
+                    <div
+                      key={doc.id}
+                      style={{
+                        padding: 12,
+                        borderRadius: 'var(--radius-md)',
+                        background: 'rgba(255, 255, 255, 0.03)',
+                        border: '1px solid var(--border-subtle)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 8,
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
+                        <div>
+                          <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text-white)' }}>
+                            {doc.title}
+                          </div>
+                          <div style={{ fontSize: 11, color: 'var(--text-faint)' }}>
+                            ID: {doc.id} · Validity Expiry: {dateLabel(doc.expiryDate)}
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                          <StatusBadge
+                            status={doc.reviewStatus}
+                            kind={doc.reviewStatus === 'Verified' ? 'green' : doc.reviewStatus === 'Pending Verification' ? 'amber' : 'muted'}
+                          />
+                        </div>
+                      </div>
+
+                      {/* File Metadata & SHA-256 Digest */}
+                      {doc.fileName && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: 11, color: 'var(--text-muted)' }}>
+                          <FileText size={13} />
+                          <span>{doc.fileName}</span>
+                          {doc.fileSize && <span>({(doc.fileSize / 1024).toFixed(1)} KB)</span>}
+                          {doc.checksumSha256 && (
+                            <span
+                              style={{
+                                fontFamily: 'var(--font-mono)',
+                                fontSize: 10,
+                                background: 'rgba(0, 53, 128, 0.1)',
+                                padding: '2px 6px',
+                                borderRadius: 'var(--radius-sm)',
+                                color: 'var(--brand-accent)',
+                                border: '1px solid var(--border-subtle)',
+                              }}
+                              title={doc.checksumSha256}
+                            >
+                              SHA-256: {doc.checksumSha256.slice(0, 10)}…{doc.checksumSha256.slice(-6)}
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Action buttons */}
+                      <div style={{ display: 'flex', gap: 8, marginTop: 4, flexWrap: 'wrap', alignItems: 'center' }}>
+                        {hasFile && (
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-ghost"
+                            onClick={() => handlePreviewDoc(doc)}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}
+                          >
+                            <Eye size={13} /> Inspect PDF
+                          </button>
+                        )}
+                        {can('verifyRenewal') && doc.reviewStatus !== 'Verified' && (
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-primary"
+                            onClick={() => handleVerifyDoc(doc.id, true)}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}
+                          >
+                            <Check size={13} /> Verify Norms
+                          </button>
+                        )}
+                        {can('verifyRenewal') && doc.reviewStatus === 'Verified' && (
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-ghost"
+                            onClick={() => handleVerifyDoc(doc.id, false)}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: 'var(--amber-text)' }}
+                          >
+                            <XCircle size={13} /> Re-open Review
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {caseDocs.length === 0 && (
+                  <div className="empty-state" style={{ padding: 16 }}>
+                    No statutory document uploads recorded for this case yet.
+                  </div>
+                )}
+              </div>
+
+              {/* Compliance Obligations Sub-section */}
+              {caseCompliance.length > 0 && (
+                <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 12 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-white)', marginBottom: 8 }}>
+                    Academic Program &amp; Cadre Compliance
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {caseCompliance.map((cmp) => (
+                      <div
+                        key={cmp.id}
+                        style={{
+                          padding: 10,
+                          borderRadius: 'var(--radius-sm)',
+                          background: 'rgba(0,0,0,0.2)',
+                          fontSize: 12,
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          gap: 8,
+                        }}
+                      >
+                        <div>
+                          <div style={{ fontWeight: 600, color: 'var(--text-white)' }}>{cmp.title}</div>
+                          <div style={{ fontSize: 11, color: 'var(--text-faint)' }}>{cmp.note || `Due: ${dateLabel(cmp.dueDate)}`}</div>
+                        </div>
+                        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-ghost"
+                            onClick={() => handlePreviewCompliance(cmp)}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px', fontSize: 11 }}
+                            title="Inspect statutory compliance evidence PDF"
+                          >
+                            <Eye size={12} /> Inspect
+                          </button>
+                          <StatusBadge
+                            status={cmp.verification}
+                            kind={cmp.verification === 'Verified' ? 'green' : cmp.verification === 'Pending Verification' ? 'amber' : 'muted'}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -624,20 +961,98 @@ export const CaseDetailScreen: React.FC<CaseDetailScreenProps> = ({ onNavigate, 
           </>
         }
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-white)' }}>
-            Deficiency Reason *
-          </label>
-          <textarea
-            rows={4}
-            placeholder="e.g. Provide the missing signed faculty affidavit and building occupancy certificate."
-            value={returnReasonInput}
-            onChange={(e) => setReturnReasonInput(e.target.value)}
-            style={{ width: '100%', resize: 'vertical' }}
-            required
-          />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-white)' }}>
+              Deficiency Category (APH 2026-27 Norms)
+            </label>
+            <select
+              value={deficiencyCategory}
+              onChange={(e) => {
+                const cat = e.target.value;
+                setDeficiencyCategory(cat);
+                if (cat) {
+                  setReturnReasonInput((prev) => {
+                    const clean = prev.replace(/^\[[^\]]+\]:\s*/, '');
+                    return `[${cat}]: ${clean}`;
+                  });
+                }
+              }}
+            >
+              <option value="">Select regulatory category...</option>
+              <option value="Land & Built-up Area (Clause 3.2)">Land &amp; Built-up Area (Clause 3.2)</option>
+              <option value="Faculty Cadre Ratio & Deficit (Clause 3.4)">Faculty Cadre Ratio &amp; Deficit (Clause 3.4)</option>
+              <option value="Fire Safety & Occupancy NOC (Clause 3.6)">Fire Safety &amp; Occupancy NOC (Clause 3.6)</option>
+              <option value="Lab Equipment & Facilities (Clause 3.8)">Lab Equipment &amp; Facilities (Clause 3.8)</option>
+              <option value="General Statutory Deficiency">General Statutory Deficiency</option>
+            </select>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-white)' }}>
+              Deficiency Reason &amp; Rectification Directives *
+            </label>
+            <textarea
+              rows={4}
+              placeholder="e.g. Provide the missing signed faculty affidavit and building occupancy certificate."
+              value={returnReasonInput}
+              onChange={(e) => setReturnReasonInput(e.target.value)}
+              style={{ width: '100%', resize: 'vertical' }}
+              required
+            />
+          </div>
           <div style={{ fontSize: 11, color: 'var(--text-faint)' }}>
             Resume stage upon resubmission will be preserved as: <strong>{app.stage}</strong>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Resubmit Response Modal */}
+      <Modal
+        isOpen={isResubmitModalOpen}
+        onClose={() => setIsResubmitModalOpen(false)}
+        title={`Submit Rectification Response: ${app.id}`}
+        description="Provide details of corrective actions taken to resolve the recorded deficiency. Scrutiny will resume at the preserved stage."
+        footerActions={
+          <>
+            <button 
+              type="button" 
+              className="btn btn-ghost" 
+              onClick={() => setIsResubmitModalOpen(false)}
+            >
+              Cancel
+            </button>
+            <button 
+              type="button" 
+              className="btn btn-primary"
+              onClick={handleConfirmResubmit}
+            >
+              Submit Response &amp; Resume Scrutiny
+            </button>
+          </>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ padding: 10, background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.25)', borderRadius: 'var(--radius-sm)', fontSize: 12 }}>
+            <span style={{ fontWeight: 700, color: 'var(--red-text)' }}>Deficiency Grounds:</span>
+            <div style={{ marginTop: 4, color: 'var(--text-white)' }}>{app.returnReason}</div>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-white)' }}>
+              Rectification Explanation &amp; Compliance Remarks *
+            </label>
+            <textarea
+              rows={4}
+              placeholder="e.g. Uploaded revised Fire Safety NOC signed by Divisional Fire Officer. Form 16 and cadre appointment orders attached."
+              value={resubmitRemarks}
+              onChange={(e) => setResubmitRemarks(e.target.value)}
+              style={{ width: '100%', resize: 'vertical' }}
+              required
+            />
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--text-faint)' }}>
+            Review will resume at stage: <strong>{app.resumeStage || 'Initial Scrutiny'}</strong> under Scrutiny Officer oversight.
           </div>
         </div>
       </Modal>
@@ -711,15 +1126,18 @@ export const CaseDetailScreen: React.FC<CaseDetailScreenProps> = ({ onNavigate, 
         </div>
       </Modal>
 
-      {/* In-Browser Document Viewer Modal for ECS & Sanction/Deficiency Letters */}
+      {/* In-Browser Document Viewer Modal for ECS, Sanction/Deficiency Letters & Statutory Dossiers */}
       {viewerConfig && (
         <DocumentViewerModal
           isOpen={viewerConfig.isOpen}
           onClose={() => setViewerConfig(null)}
           title={viewerConfig.title}
-          documentId={app.id}
+          documentId={viewerConfig.documentId || app.id}
           endpoint={viewerConfig.endpoint}
           fileName={viewerConfig.fileName}
+          fileSize={viewerConfig.fileSize}
+          checksumSha256={viewerConfig.checksumSha256}
+          uploadedAt={viewerConfig.uploadedAt}
           mimeType="application/pdf"
         />
       )}

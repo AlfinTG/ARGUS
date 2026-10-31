@@ -52,3 +52,16 @@ class AlertResponse(BaseModel):
 
 class AlertActionRequest(BaseModel):
     note: Optional[str] = None
+
+class CommunicationDispatchResponse(BaseModel):
+    id: str
+    channel: str  # "SMS" | "EMAIL"
+    recipient: str
+    recipient_role: str
+    target: str
+    rule_id: str
+    subject: str
+    message: str
+    dispatched_at: str
+    status: str
+    correlation: str

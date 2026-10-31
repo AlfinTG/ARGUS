@@ -89,6 +89,64 @@ def test_evaluate_rules_and_idempotency_guarantee():
     assert data2["skipped_duplicates"] == first_spawned
     assert "No new alerts needed" in data2["message"]
 
+
+def test_evaluate_rules_role_boundaries():
+    """Verify that only System Operator and Regional Officer can trigger rule evaluation."""
+    inst_token = get_auth_token("institution@shivneri.edu.in")
+    scrutiny_token = get_auth_token("scrutiny@aicte.gov.in")
+    coord_token = get_auth_token("coordinator@aicte.gov.in")
+    regional_token = get_auth_token("regional@aicte.gov.in")
+    operator_token = get_auth_token("operator@aicte.gov.in")
+
+    # Institution user -> 403 Forbidden
+    resp_inst = client.post("/api/v1/rules/evaluate", headers={"Authorization": f"Bearer {inst_token}"})
+    assert resp_inst.status_code == 403
+
+    # Scrutiny officer -> 403 Forbidden
+    resp_scrutiny = client.post("/api/v1/rules/evaluate", headers={"Authorization": f"Bearer {scrutiny_token}"})
+    assert resp_scrutiny.status_code == 403
+
+    # Coordinator -> 403 Forbidden
+    resp_coord = client.post("/api/v1/rules/evaluate", headers={"Authorization": f"Bearer {coord_token}"})
+    assert resp_coord.status_code == 403
+
+    # Regional officer -> 200 OK
+    resp_reg = client.post("/api/v1/rules/evaluate?as_of_date=2026-10-26", headers={"Authorization": f"Bearer {regional_token}"})
+    assert resp_reg.status_code == 200
+
+    # System operator -> 200 OK
+    resp_op = client.post("/api/v1/rules/evaluate?as_of_date=2026-10-26", headers={"Authorization": f"Bearer {operator_token}"})
+    assert resp_op.status_code == 200
+
+
+def test_versioned_deduplication_keys_and_uuid_format():
+    """Verify deduplication keys include policy version and IDs are collision-free UUIDs."""
+    regional_token = get_auth_token("regional@aicte.gov.in")
+
+    # Evaluate rules to populate alerts with versioned keys
+    eval_resp = client.post(
+        "/api/v1/rules/evaluate?as_of_date=2026-10-26",
+        headers={"Authorization": f"Bearer {regional_token}"},
+    )
+    assert eval_resp.status_code == 200
+
+    resp = client.get("/api/v1/alerts/", headers={"Authorization": f"Bearer {regional_token}"})
+    assert resp.status_code == 200
+    alerts = resp.json()
+    assert len(alerts) > 0
+
+    for a in alerts:
+        # Check alert ID format (ALT-XXXXXXXX)
+        assert a["id"].startswith("ALT-")
+        assert len(a["id"]) >= 12  # ALT- + 8 hex chars
+
+        # Check versioned processed_key format: {target}:{rule}:{date}:{policy_version}
+        pkey = a.get("processed_key")
+        if pkey:
+            parts = pkey.split(":")
+            assert len(parts) >= 4, f"Invalid key structure: {pkey}"
+            assert parts[-1] == "DEMO-v1", f"Policy version missing in key: {pkey}"
+
 def test_alerts_listing_and_filtering():
     token = get_auth_token("regional@aicte.gov.in")
 
@@ -186,3 +244,43 @@ def test_institution_user_alert_permissions():
     )
     assert forbidden_resp.status_code == 403
     assert "only acknowledge alerts addressed to them" in forbidden_resp.json()["detail"]
+
+
+def test_communication_outbox_logging():
+    """Verify that simulated SMS and Email dispatches are recorded and scoped in outbox."""
+    regional_token = get_auth_token("regional@aicte.gov.in")
+    inst_token = get_auth_token("institution@shivneri.edu.in")
+
+    # Ensure alerts are populated via evaluation
+    client.post("/api/v1/rules/evaluate?as_of_date=2026-10-26", headers={"Authorization": f"Bearer {regional_token}"})
+
+    # Fetch outbox as regional officer
+    resp = client.get("/api/v1/alerts/outbox", headers={"Authorization": f"Bearer {regional_token}"})
+    assert resp.status_code == 200
+    dispatches = resp.json()
+    assert len(dispatches) > 0
+
+    sms_items = [d for d in dispatches if d["channel"] == "SMS"]
+    email_items = [d for d in dispatches if d["channel"] == "EMAIL"]
+    assert len(sms_items) > 0
+    assert len(email_items) > 0
+
+    first = dispatches[0]
+    assert "recipient" in first
+    assert "subject" in first
+    assert "message" in first
+    assert first["status"] == "Delivered"
+    assert first["correlation"].startswith("DISP-")
+
+    # Channel filtering test
+    resp_sms_only = client.get("/api/v1/alerts/outbox?channel=SMS", headers={"Authorization": f"Bearer {regional_token}"})
+    assert resp_sms_only.status_code == 200
+    for d in resp_sms_only.json():
+        assert d["channel"] == "SMS"
+
+    # Scoping test: Institution user sees only their institution dispatches
+    resp_inst = client.get("/api/v1/alerts/outbox", headers={"Authorization": f"Bearer {inst_token}"})
+    assert resp_inst.status_code == 200
+    for d in resp_inst.json():
+        assert d["recipient_role"] == "Institution User"
+

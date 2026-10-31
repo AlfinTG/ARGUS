@@ -1,10 +1,14 @@
 import argparse
 import logging
+import os
 import signal
 import sys
 import time
 from datetime import datetime, timezone
 from typing import Optional
+
+# Ensure project root is in sys.path when invoked directly as python app/worker.py
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.db.session import SessionLocal
 from app.services.rules_engine import evaluate_rules, get_or_create_rule_config
@@ -72,11 +76,13 @@ def main():
         f"mode={'single-run' if args.once else 'continuous'})"
     )
 
+    had_error = False
     while _keep_running:
         db = SessionLocal()
         try:
             run_worker_cycle(db, as_of_date=args.as_of_date)
         except Exception as exc:
+            had_error = True
             logger.error(f"Error during worker evaluation cycle: {exc}", exc_info=True)
         finally:
             db.close()
@@ -89,6 +95,10 @@ def main():
             if not _keep_running:
                 break
             time.sleep(1)
+
+    if had_error and args.once:
+        logger.error("ARGUS Background Worker Daemon encountered errors and terminated with failure code.")
+        sys.exit(1)
 
     logger.info("ARGUS Background Worker Daemon terminated cleanly.")
     sys.exit(0)

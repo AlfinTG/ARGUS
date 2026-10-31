@@ -61,8 +61,8 @@ export const OverviewScreen: React.FC<OverviewScreenProps> = ({ onNavigate, onTo
     onNavigate('case');
   };
 
-  const handleRunCycle = () => {
-    const result = runAutomationCycle();
+  const handleRunCycle = async () => {
+    const result = await runAutomationCycle();
     onToast(result.message, result.newAlertsCount > 0 ? 'warning' : 'info');
   };
 
@@ -87,28 +87,35 @@ export const OverviewScreen: React.FC<OverviewScreenProps> = ({ onNavigate, onTo
 
   return (
     <div className="animate-fade-in">
-      {/* Page-level actions — rendered here so they sit inside the h1 row */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: -52, marginBottom: 24 }}>
-        <button
-          type="button"
-          className="btn"
-          onClick={handleReset}
-          title="Reset to factory synthetic dataset"
-          id="overview-reset-btn"
-        >
-          <RotateCcw size={14} />
-          {t('resetDemoBtn')}
-        </button>
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={handleRunCycle}
-          title="Trigger automated due-date and expiry rule evaluation"
-          id="overview-run-cycle-btn"
-        >
-          <Play size={14} />
-          {t('runCycleBtn')}
-        </button>
+      {/* Page Header */}
+      <div className="page-header">
+        <div>
+          <div className="page-eyebrow">Approval Operations</div>
+          <h1>{t('overviewTitle')}</h1>
+          <p>{t('overviewDesc')}</p>
+        </div>
+        <div className="page-actions">
+          <button
+            type="button"
+            className="btn"
+            onClick={handleReset}
+            title="Reset to factory synthetic dataset"
+            id="overview-reset-btn"
+          >
+            <RotateCcw size={14} />
+            {t('resetDemoBtn')}
+          </button>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={handleRunCycle}
+            title="Trigger automated due-date and expiry rule evaluation"
+            id="overview-run-cycle-btn"
+          >
+            <Play size={14} />
+            {t('runCycleBtn')}
+          </button>
+        </div>
       </div>
 
       {/* ── KPI Metric Cards ─────────────────────────────────────────── */}

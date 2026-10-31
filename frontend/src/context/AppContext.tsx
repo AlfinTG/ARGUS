@@ -30,36 +30,42 @@ interface AppContextType {
   deny: (actionLabel: string) => void;
   
   // Application Actions
-  completeStage: (appId: string) => { ok: boolean; reason?: string };
-  returnForDeficiency: (appId: string, reason: string) => { ok: boolean; reason?: string };
-  resubmitApplication: (appId: string) => { ok: boolean; reason?: string };
-  recordDecision: (appId: string, decision: 'Approved' | 'Rejected', remarks: string) => { ok: boolean; reason?: string };
+  completeStage: (appId: string) => Promise<{ ok: boolean; reason?: string }>;
+  returnForDeficiency: (appId: string, reason: string) => Promise<{ ok: boolean; reason?: string }>;
+  resubmitApplication: (appId: string, remarks?: string) => Promise<{ ok: boolean; reason?: string }>;
+  regionalReview: (
+    appId: string,
+    recommendation: 'Endorse' | 'Escalate' | 'Return',
+    remarks: string,
+    complianceIdsVerified?: string[]
+  ) => Promise<{ ok: boolean; reason?: string }>;
+  recordDecision: (appId: string, decision: 'Approved' | 'Rejected', remarks: string) => Promise<{ ok: boolean; reason?: string }>;
   createApplication: (newApp: {
     institution: string;
     type: string;
     region: string;
     route: any;
     dueDate: string;
-  }) => void;
+  }) => Promise<Application | void>;
   
   // Compliance Actions
-  submitEvidence: (obligationId: string, note?: string) => void;
-  verifyEvidence: (obligationId: string, verified: boolean, note?: string) => void;
+  submitEvidence: (obligationId: string, note?: string) => Promise<void>;
+  verifyEvidence: (obligationId: string, verified: boolean, note?: string) => Promise<void>;
   
   // EVC Desk Actions
-  scheduleEVC: (evcId: string, visitDate: string, panel: string) => void;
-  submitEVCReport: (evcId: string, outcome: 'Satisfactory' | 'Deficiencies Noted') => void;
+  scheduleEVC: (evcId: string, visitDate: string, panel: string, inspectionMode?: string) => Promise<void>;
+  submitEVCReport: (evcId: string, outcome: 'Satisfactory' | 'Deficiencies Noted', remarks?: string, rubric?: any) => Promise<void>;
   
   // Document Register Actions
-  submitDocumentRenewal: (docId: string) => void;
-  verifyDocumentRenewal: (docId: string, verified: boolean) => void;
+  submitDocumentRenewal: (docId: string, note?: string) => Promise<void>;
+  verifyDocumentRenewal: (docId: string, verified: boolean) => Promise<void>;
   
   // Alert Actions
-  acknowledgeAlert: (alertId: string) => void;
-  resolveAlert: (alertId: string) => void;
+  acknowledgeAlert: (alertId: string) => Promise<void>;
+  resolveAlert: (alertId: string, note?: string) => Promise<void>;
   
   // Automation Engine
-  runAutomationCycle: () => { newAlertsCount: number; message: string };
+  runAutomationCycle: () => Promise<{ newAlertsCount: number; message: string }>;
   resetDemo: () => void;
   
   // Audit helper
@@ -167,12 +173,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       complete: ['Scrutiny Officer', 'Regional Officer'],
       return: ['Scrutiny Officer', 'Regional Officer'],
       resubmit: ['Institution User'],
+      regionalReview: ['Regional Officer', 'System Operator'],
       schedule: ['Committee Coordinator'],
       evcReport: ['Committee Coordinator'],
       submitEvidence: ['Institution User'],
       verifyEvidence: ['Regional Officer', 'Competent Authority'],
       submitRenewal: ['Institution User'],
-      verifyRenewal: ['Regional Officer', 'Competent Authority'],
+      verifyRenewal: ['Scrutiny Officer', 'Regional Officer', 'Competent Authority'],
       decision: ['Competent Authority'],
       create: ['Regional Officer'],
     };
@@ -210,7 +217,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setState((prev) => ({ ...prev, simDate }));
   };
 
-  const updateSettings = (newSettings: Partial<DemoSettings>) => {
+  const updateSettings = async (newSettings: Partial<DemoSettings>) => {
+    if (isBackendConnected) {
+      try {
+        const updated = await api.updateRuleConfig(newSettings);
+        setState((prev) => ({
+          ...prev,
+          settings: { ...prev.settings, ...updated },
+        }));
+        return;
+      } catch (err) {
+        console.error('Failed to update rule configuration on server:', err);
+      }
+    }
+
     setState((prev) => ({
       ...prev,
       settings: { ...prev.settings, ...newSettings },
@@ -222,7 +242,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // Application Workflow: Complete current stage
-  const completeStage = (appId: string): { ok: boolean; reason?: string } => {
+  const completeStage = async (appId: string): Promise<{ ok: boolean; reason?: string }> => {
     if (!can('complete')) {
       deny(`Complete stage on ${appId}`);
       return { ok: false, reason: `Action not permitted for role: ${state.role}` };
@@ -246,6 +266,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const currentIndex = routeSeq.indexOf(app.stage);
     if (currentIndex < 0 || currentIndex >= routeSeq.length - 1) {
       return { ok: false, reason: 'This route has no automatic next stage.' };
+    }
+
+    if (isBackendConnected) {
+      try {
+        const updated = await api.transitionApplication(appId, 'complete');
+        setState((prev) => ({
+          ...prev,
+          apps: prev.apps.map((a) => (a.id === appId ? updated : a)),
+        }));
+        await refreshBackend();
+        return { ok: true };
+      } catch (err: any) {
+        console.error('Failed to complete stage on server:', err);
+        return { ok: false, reason: err.message || 'Failed to complete stage on server.' };
+      }
     }
 
     const nextStage = routeSeq[currentIndex + 1];
@@ -311,7 +346,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // Application Workflow: Return for deficiency
-  const returnForDeficiency = (appId: string, reason: string): { ok: boolean; reason?: string } => {
+  const returnForDeficiency = async (appId: string, reason: string): Promise<{ ok: boolean; reason?: string }> => {
     if (!can('return')) {
       deny(`Return application ${appId}`);
       return { ok: false, reason: `Action not permitted for role: ${state.role}` };
@@ -323,6 +358,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const app = state.apps.find((a) => a.id === appId);
     if (!app) return { ok: false, reason: 'Application not found' };
+
+    if (isBackendConnected) {
+      try {
+        const updated = await api.transitionApplication(appId, 'return', { reason: reason.trim() });
+        setState((prev) => ({
+          ...prev,
+          apps: prev.apps.map((a) => (a.id === appId ? updated : a)),
+        }));
+        await refreshBackend();
+        return { ok: true };
+      } catch (err: any) {
+        console.error('Failed to return application on server:', err);
+        return { ok: false, reason: err.message || 'Failed to return application on server.' };
+      }
+    }
 
     const updatedApps = state.apps.map((a) =>
       a.id === appId
@@ -359,7 +409,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // Application Workflow: Resubmit response
-  const resubmitApplication = (appId: string): { ok: boolean; reason?: string } => {
+  const resubmitApplication = async (appId: string, remarks = ''): Promise<{ ok: boolean; reason?: string }> => {
     if (!can('resubmit')) {
       deny(`Resubmit response for ${appId}`);
       return { ok: false, reason: `Action not permitted for role: ${state.role}` };
@@ -367,6 +417,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const app = state.apps.find((a) => a.id === appId);
     if (!app) return { ok: false, reason: 'Application not found' };
+
+    if (isBackendConnected) {
+      try {
+        const updated = await api.transitionApplication(appId, 'resubmit', { remarks: remarks.trim() });
+        setState((prev) => ({
+          ...prev,
+          apps: prev.apps.map((a) => (a.id === appId ? updated : a)),
+        }));
+        await refreshBackend();
+        return { ok: true };
+      } catch (err: any) {
+        console.error('Failed to resubmit application on server:', err);
+        return { ok: false, reason: err.message || 'Failed to resubmit application on server.' };
+      }
+    }
 
     const resume = (app.resumeStage || 'Initial Scrutiny') as any;
 
@@ -403,11 +468,153 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return { ok: true };
   };
 
+  // Regional Office Review & Endorsement (Phase 4)
+  const regionalReview = async (
+    appId: string,
+    recommendation: 'Endorse' | 'Escalate' | 'Return',
+    remarks: string,
+    complianceIdsVerified: string[] = []
+  ): Promise<{ ok: boolean; reason?: string }> => {
+    if (!can('regionalReview')) {
+      deny(`Regional review on ${appId}`);
+      return { ok: false, reason: `Action reserved for Regional Officer.` };
+    }
+
+    if (!remarks.trim()) {
+      return { ok: false, reason: 'Regional review remarks are mandatory.' };
+    }
+
+    const app = state.apps.find((a) => a.id === appId);
+    if (!app) return { ok: false, reason: 'Application not found' };
+
+    const eligibleStages = ['EVC Report Review', 'Initial Scrutiny', 'SAC/SHC Review'];
+    if (!eligibleStages.includes(app.stage)) {
+      return {
+        ok: false,
+        reason: `Application stage '${app.stage}' is not eligible for Regional Office review.`,
+      };
+    }
+
+    if (isBackendConnected) {
+      try {
+        const updated = await api.regionalReview(appId, recommendation, remarks.trim(), complianceIdsVerified);
+        setState((prev) => ({
+          ...prev,
+          apps: prev.apps.map((a) => (a.id === appId ? updated : a)),
+        }));
+        await refreshBackend();
+        return { ok: true };
+      } catch (err: any) {
+        console.error('Failed to submit regional review on server:', err);
+        return { ok: false, reason: err.message || 'Failed to submit regional review on server.' };
+      }
+    }
+
+    // Local fallback
+    const routeSeq = ROUTES[app.route] || [];
+    const currIdx = routeSeq.indexOf(app.stage);
+    let nextStage = app.stage;
+    let nextStatus = app.status;
+    let nextOwner = app.ownerRole;
+    let returnReason = app.returnReason;
+    let resumeStage = app.resumeStage;
+
+    if (recommendation === 'Endorse') {
+      if (currIdx < 0 || currIdx >= routeSeq.length - 1) {
+        nextStage = 'Decision Pending';
+        nextStatus = 'Decision pending';
+        nextOwner = 'Competent Authority';
+      } else {
+        nextStage = routeSeq[currIdx + 1];
+        if (nextStage === 'Decision Pending') {
+          nextStatus = 'Decision pending';
+          nextOwner = 'Competent Authority';
+        } else if (nextStage === 'SAC/SHC Review') {
+          nextStatus = 'In progress';
+          nextOwner = 'Regional Officer';
+        } else {
+          nextStatus = 'In progress';
+          nextOwner = 'Competent Authority';
+        }
+      }
+    } else if (recommendation === 'Escalate') {
+      nextStage = 'Decision Pending';
+      nextStatus = 'Decision pending';
+      nextOwner = 'Competent Authority';
+    } else if (recommendation === 'Return') {
+      resumeStage = app.stage;
+      nextStage = 'Institution Response';
+      nextStatus = 'Awaiting institution';
+      nextOwner = 'Institution User';
+      returnReason = remarks.trim();
+    }
+
+    const updatedApps = state.apps.map((a) =>
+      a.id === appId
+        ? {
+            ...a,
+            stage: nextStage,
+            status: nextStatus,
+            ownerRole: nextOwner,
+            returnReason,
+            resumeStage,
+            updatedAt: state.simDate,
+          }
+        : a
+    );
+
+    const updatedCompliance = state.compliance.map((c) =>
+      complianceIdsVerified.includes(c.id) ? { ...c, verification: 'Verified' as const } : c
+    );
+
+    const auditEvent: AuditEvent = {
+      id: `AUD-${Date.now().toString().slice(-4)}`,
+      time: getNowStamp(),
+      actor: state.role,
+      target: app.id,
+      type: 'Workflow',
+      rule: 'REG-01',
+      detail: `Regional Officer review: '${recommendation}'. Stage: '${app.stage}' → '${nextStage}'. Compliance verified: ${JSON.stringify(complianceIdsVerified)}. Remarks: '${remarks.trim()}'.`,
+      correlation: generateCorrelation(),
+    };
+
+    setState((prev) => ({
+      ...prev,
+      apps: updatedApps,
+      compliance: updatedCompliance,
+      audit: [auditEvent, ...prev.audit],
+    }));
+
+    return { ok: true };
+  };
+
   // Final Competent Authority Decision
-  const recordDecision = (appId: string, decision: 'Approved' | 'Rejected', remarks: string): { ok: boolean; reason?: string } => {
+  const recordDecision = async (
+    appId: string, 
+    decision: 'Approved' | 'Rejected', 
+    remarks: string
+  ): Promise<{ ok: boolean; reason?: string }> => {
     if (!can('decision')) {
       deny(`Final decision for ${appId}`);
       return { ok: false, reason: `Decision reserved for Competent Authority.` };
+    }
+
+    if (isBackendConnected) {
+      try {
+        const updated = await api.transitionApplication(appId, 'decision', {
+          decision,
+          remarks: remarks || '',
+        });
+        setState((prev) => ({
+          ...prev,
+          apps: prev.apps.map((a) => (a.id === appId ? updated : a)),
+        }));
+        await refreshBackend();
+        return { ok: true };
+      } catch (err: any) {
+        console.error('Failed to record decision on server:', err);
+        return { ok: false, reason: err.message || 'Failed to record decision on server.' };
+      }
     }
 
     const updatedApps = state.apps.map((a) =>
@@ -416,6 +623,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             ...a,
             stage: decision as any,
             status: (decision === 'Approved' ? 'Closed' : 'Rejected') as any,
+            returnReason: decision === 'Approved' ? '' : (remarks || a.returnReason),
             updatedAt: state.simDate,
           }
         : a
@@ -442,13 +650,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // Create Synthetic Application
-  const createApplication = (newApp: {
+  const createApplication = async (newApp: {
     institution: string;
     type: string;
     region: string;
     route: any;
     dueDate: string;
-  }) => {
+  }): Promise<Application | void> => {
+    if (isBackendConnected) {
+      try {
+        const created = await api.createApplication(newApp);
+        setState((prev) => ({
+          ...prev,
+          apps: [created, ...prev.apps.filter((a) => a.id !== created.id)],
+        }));
+        await refreshBackend();
+        return created;
+      } catch (err) {
+        console.error('Failed to create application on server:', err);
+      }
+    }
+
     const id = `APP-2026-${String(Math.floor(100 + Math.random() * 900))}`;
     const initialStage = (ROUTES[newApp.route as keyof typeof ROUTES] || ['Initial Scrutiny'])[0];
 
@@ -484,13 +706,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       apps: [appRecord, ...prev.apps],
       audit: [auditEvent, ...prev.audit],
     }));
+    return appRecord;
   };
 
   // Compliance: Submit evidence
-  const submitEvidence = (obligationId: string, note = '') => {
+  const submitEvidence = async (obligationId: string, note = '') => {
     if (!can('submitEvidence')) {
       deny(`Submit evidence for ${obligationId}`);
       return;
+    }
+
+    if (isBackendConnected) {
+      try {
+        const updated = await api.submitComplianceEvidence(obligationId, note);
+        setState((prev) => ({
+          ...prev,
+          compliance: prev.compliance.map((c) => (c.id === obligationId ? updated : c)),
+        }));
+        await refreshBackend();
+        return;
+      } catch (err) {
+        console.error('Failed to submit compliance evidence to server:', err);
+      }
     }
 
     const updated = state.compliance.map((c) =>
@@ -523,10 +760,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // Compliance: Verify evidence
-  const verifyEvidence = (obligationId: string, verified: boolean, note = '') => {
+  const verifyEvidence = async (obligationId: string, verified: boolean, note = '') => {
     if (!can('verifyEvidence')) {
       deny(`Verify evidence for ${obligationId}`);
       return;
+    }
+
+    if (isBackendConnected) {
+      try {
+        const updated = await api.verifyCompliance(obligationId, verified, note);
+        setState((prev) => ({
+          ...prev,
+          compliance: prev.compliance.map((c) => (c.id === obligationId ? updated : c)),
+        }));
+        await refreshBackend();
+        return;
+      } catch (err) {
+        console.error('Failed to verify compliance on server:', err);
+      }
     }
 
     const outcome = verified ? 'Verified' : 'Rejected / clarification';
@@ -559,10 +810,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // EVC Desk: Schedule Visit
-  const scheduleEVC = (evcId: string, visitDate: string, panel: string) => {
+  const scheduleEVC = async (
+    evcId: string, 
+    visitDate: string, 
+    panel: string, 
+    inspectionMode = 'Physical Visit'
+  ) => {
     if (!can('schedule')) {
       deny(`Schedule EVC for ${evcId}`);
       return;
+    }
+
+    if (isBackendConnected) {
+      try {
+        const updated = await api.scheduleEVC(evcId, visitDate, panel, inspectionMode);
+        setState((prev) => ({
+          ...prev,
+          evcs: prev.evcs.map((e) => (e.id === evcId ? updated : e)),
+        }));
+        await refreshBackend();
+        return;
+      } catch (err) {
+        console.error('Failed to schedule EVC on server:', err);
+      }
     }
 
     const updated = state.evcs.map((e) =>
@@ -595,10 +865,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // EVC Desk: Submit Report and Advance Case
-  const submitEVCReport = (evcId: string, outcome: 'Satisfactory' | 'Deficiencies Noted') => {
+  const submitEVCReport = async (
+    evcId: string, 
+    outcome: 'Satisfactory' | 'Deficiencies Noted', 
+    remarks = '', 
+    rubric?: any
+  ) => {
     if (!can('evcReport')) {
       deny(`Submit EVC report for ${evcId}`);
       return;
+    }
+
+    if (isBackendConnected) {
+      try {
+        const updated = await api.submitEVCReport(
+          evcId, 
+          outcome, 
+          remarks || `Report outcome: ${outcome}`, 
+          rubric
+        );
+        setState((prev) => ({
+          ...prev,
+          evcs: prev.evcs.map((e) => (e.id === evcId ? updated : e)),
+        }));
+        await refreshBackend();
+        return;
+      } catch (err) {
+        console.error('Failed to submit EVC report to server:', err);
+      }
     }
 
     const evc = state.evcs.find((e) => e.id === evcId);
@@ -651,10 +945,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // Documents: Submit renewal
-  const submitDocumentRenewal = (docId: string) => {
+  const submitDocumentRenewal = async (docId: string, note = '') => {
     if (!can('submitRenewal')) {
       deny(`Submit renewal for ${docId}`);
       return;
+    }
+
+    if (isBackendConnected) {
+      try {
+        const updated = await api.submitDocumentRenewal(docId, note);
+        setState((prev) => ({
+          ...prev,
+          docs: prev.docs.map((d) => (d.id === docId ? updated : d)),
+        }));
+        await refreshBackend();
+        return;
+      } catch (err) {
+        console.error('Failed to submit document renewal to server:', err);
+      }
     }
 
     const updated = state.docs.map((d) =>
@@ -686,10 +994,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // Documents: Verify renewal
-  const verifyDocumentRenewal = (docId: string, verified: boolean) => {
+  const verifyDocumentRenewal = async (docId: string, verified: boolean) => {
     if (!can('verifyRenewal')) {
       deny(`Verify renewal for ${docId}`);
       return;
+    }
+
+    if (isBackendConnected) {
+      try {
+        const updated = await api.verifyDocument(docId, verified);
+        setState((prev) => ({
+          ...prev,
+          docs: prev.docs.map((d) => (d.id === docId ? updated : d)),
+        }));
+        await refreshBackend();
+        return;
+      } catch (err) {
+        console.error('Failed to verify document renewal on server:', err);
+      }
     }
 
     const updated = state.docs.map((d) =>
@@ -724,20 +1046,63 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // Alerts: Acknowledge & Resolve
-  const acknowledgeAlert = (alertId: string) => {
+  const acknowledgeAlert = async (alertId: string) => {
+    if (isBackendConnected) {
+      try {
+        const updated = await api.acknowledgeAlert(alertId);
+        setState((prev) => ({
+          ...prev,
+          alerts: prev.alerts.map((a) => (a.id === alertId ? updated : a)),
+        }));
+        await refreshBackend();
+        return;
+      } catch (err) {
+        console.error('Failed to acknowledge alert on server:', err);
+      }
+    }
+
     const updated = state.alerts.map((a) => (a.id === alertId ? { ...a, status: 'Acknowledged' as const } : a));
     addAudit(state.role, alertId, 'Alert', `Alert acknowledged by ${state.role}.`);
     setState((prev) => ({ ...prev, alerts: updated }));
   };
 
-  const resolveAlert = (alertId: string) => {
+  const resolveAlert = async (alertId: string, note = '') => {
+    if (isBackendConnected) {
+      try {
+        const updated = await api.resolveAlert(alertId, note);
+        setState((prev) => ({
+          ...prev,
+          alerts: prev.alerts.map((a) => (a.id === alertId ? updated : a)),
+        }));
+        await refreshBackend();
+        return;
+      } catch (err) {
+        console.error('Failed to resolve alert on server:', err);
+      }
+    }
+
     const updated = state.alerts.map((a) => (a.id === alertId ? { ...a, status: 'Resolved' as const } : a));
     addAudit(state.role, alertId, 'Alert', `Alert marked resolved by ${state.role}.`);
     setState((prev) => ({ ...prev, alerts: updated }));
   };
 
   // Automation Engine with Idempotency Protection
-  const runAutomationCycle = (): { newAlertsCount: number; message: string } => {
+  const runAutomationCycle = async (): Promise<{ newAlertsCount: number; message: string }> => {
+    if (isBackendConnected) {
+      try {
+        const res = await api.evaluateRules(state.simDate);
+        await refreshBackend();
+        return {
+          newAlertsCount: res.alerts_spawned,
+          message:
+            res.message ||
+            `Automation cycle evaluated: ${res.alerts_spawned} new alert(s) spawned, ${res.skipped_duplicates} duplicate(s) suppressed.`,
+        };
+      } catch (err: any) {
+        console.error('Failed to run automation cycle on server:', err);
+      }
+    }
+
     const newAlerts: Alert[] = [];
     const newProcessedKeys = new Set(state.processedKeys);
     let generatedAuditEvents: AuditEvent[] = [];
@@ -950,6 +1315,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         completeStage,
         returnForDeficiency,
         resubmitApplication,
+        regionalReview,
         recordDecision,
         createApplication,
         submitEvidence,

@@ -74,7 +74,7 @@ def update_rule_config(
 
     if changes:
         audit = AuditEvent(
-            id=f"AUD-{random.randint(1000, 9999)}",
+            id=f"AUD-{uuid.uuid4().hex[:8].upper()}",
             time=get_now_stamp(),
             actor=current_user.full_name,
             target="RuleConfig",
@@ -93,7 +93,7 @@ def update_rule_config(
 def run_evaluation_cycle(
     req: Optional[RuleEvaluationRequest] = None,
     as_of_date: Optional[str] = Query(None, description="Simulation reference date in YYYY-MM-DD format"),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_roles("System Operator", "Regional Officer")),
     db: Session = Depends(get_db),
 ):
     """Execute an idempotent rule evaluation scan across cases, compliance, and documents."""

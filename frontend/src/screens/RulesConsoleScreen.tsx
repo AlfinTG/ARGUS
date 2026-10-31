@@ -47,8 +47,8 @@ export const RulesConsoleScreen: React.FC<RulesConsoleScreenProps> = ({ onToast 
     onToast('Demo policy configuration and simulation date saved!', 'success');
   };
 
-  const handleEvaluateNow = () => {
-    const res = runAutomationCycle();
+  const handleEvaluateNow = async () => {
+    const res = await runAutomationCycle();
     onToast(res.message, res.newAlertsCount > 0 ? 'warning' : 'info');
   };
 

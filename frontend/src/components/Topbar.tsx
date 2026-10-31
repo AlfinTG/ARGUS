@@ -219,6 +219,7 @@ export const getScreenMeta = (
     switch (screen) {
       case 'overview':     return { crumb: t('navOverview'),     title: t('overviewTitle'),     desc: t('overviewDesc') };
       case 'applications': return { crumb: t('navApplications'), title: t('applicationsTitle'), desc: t('applicationsDesc') };
+      case 'regional':     return { crumb: t('navRegional'),     title: t('regionalTitle'),     desc: t('regionalDesc') };
       case 'case':         return { crumb: `${t('navApplications')} / ${selectedCaseId || 'Detail'}`, title: t('caseTitle'), desc: t('caseDesc') };
       case 'compliance':   return { crumb: t('navCompliance'),   title: t('complianceTitle'),   desc: t('complianceDesc') };
       case 'evc':          return { crumb: t('navEvc'),          title: t('evcTitle'),          desc: t('evcDesc') };
@@ -233,6 +234,7 @@ export const getScreenMeta = (
   switch (screen) {
     case 'overview':     return { crumb: 'Overview',        title: 'Approval operations',                       desc: `Pending approval stages, statutory deadlines, EVC queues and escalations.` };
     case 'applications': return { crumb: 'Applications',    title: 'Case management',                           desc: 'All active applications sorted by statutory priority.' };
+    case 'regional':     return { crumb: 'Regional desk',    title: 'Regional Office review & endorsement',      desc: 'Regional dossier inspection, compliance verification, and statutory recommendations.' };
     case 'case':         return { crumb: `Applications / ${selectedCaseId || 'Detail'}`, title: 'Case progression & scrutiny', desc: 'Full lifecycle dossier and scrutiny worksheet.' };
     case 'compliance':   return { crumb: 'Compliance',      title: 'Institutional obligations & undertakings',  desc: 'Statutory compliance obligations due for verification.' };
     case 'evc':          return { crumb: 'EVC desk',        title: 'Expert Visit Committee operations',         desc: 'Scheduling and reporting for on-site committee visits.' };

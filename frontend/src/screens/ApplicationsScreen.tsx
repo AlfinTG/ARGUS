@@ -1,11 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import type { ScreenType } from '../types/index';
-import type { RouteType } from '../types/domain';
+import type { RouteType, InstitutionalFilingResult } from '../types/domain';
 import { GlassPanel } from '../components/GlassPanel';
 import { StatusBadge } from '../components/StatusBadge';
 import { Modal } from '../components/Modal';
-import { Search, Plus, Filter } from 'lucide-react';
+import { ApplicationWizard } from '../components/ApplicationWizard';
+import { Search, Plus, Filter, FileText } from 'lucide-react';
 
 interface ApplicationsScreenProps {
   onNavigate: (screen: ScreenType) => void;
@@ -18,7 +19,8 @@ export const ApplicationsScreen: React.FC<ApplicationsScreenProps> = ({ onNaviga
     dayDiff, 
     dateLabel, 
     setSelectedAppId, 
-    createApplication 
+    createApplication,
+    refreshBackend,
   } = useApp();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -26,7 +28,8 @@ export const ApplicationsScreen: React.FC<ApplicationsScreenProps> = ({ onNaviga
   const [selectedStatus, setSelectedStatus] = useState('');
   const [selectedRegion, setSelectedRegion] = useState('');
 
-  // Modal State
+  // Wizard & Modal State
+  const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [isNewAppModalOpen, setIsNewAppModalOpen] = useState(false);
   const [newInstitution, setNewInstitution] = useState('');
   const [newType, setNewType] = useState('Renewal');
@@ -83,6 +86,14 @@ export const ApplicationsScreen: React.FC<ApplicationsScreenProps> = ({ onNaviga
     return <StatusBadge status="On track" kind="green" />;
   };
 
+  const handleWizardSuccess = async (result: InstitutionalFilingResult) => {
+    setIsWizardOpen(false);
+    onToast(result.message, 'success');
+    await refreshBackend();
+    setSelectedAppId(result.application.id);
+    onNavigate('case');
+  };
+
   return (
     <div className="animate-fade-in">
       <div className="page-header">
@@ -93,14 +104,24 @@ export const ApplicationsScreen: React.FC<ApplicationsScreenProps> = ({ onNaviga
             Regulatory case registry. Route progression depends on the selected route profile, stage prerequisites, and authorized demo roles.
           </p>
         </div>
-        <div className="page-actions">
+        <div className="page-actions" style={{ display: 'flex', gap: 10 }}>
           <button 
             type="button" 
             className="btn btn-primary"
-            onClick={() => setIsNewAppModalOpen(true)}
+            onClick={() => setIsWizardOpen(true)}
+            id="open-wizard-btn"
           >
-            <Plus size={16} /> New demo application
+            <FileText size={16} /> File Application (APH 2026-27)
           </button>
+          {state.role !== 'Institution User' && (
+            <button 
+              type="button" 
+              className="btn btn-outline"
+              onClick={() => setIsNewAppModalOpen(true)}
+            >
+              <Plus size={16} /> New demo application
+            </button>
+          )}
         </div>
       </div>
 
@@ -359,6 +380,14 @@ export const ApplicationsScreen: React.FC<ApplicationsScreenProps> = ({ onNaviga
           </div>
         </form>
       </Modal>
+
+      {isWizardOpen && (
+        <ApplicationWizard
+          onClose={() => setIsWizardOpen(false)}
+          onSuccess={handleWizardSuccess}
+          onToast={onToast}
+        />
+      )}
     </div>
   );
 };

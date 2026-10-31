@@ -1,3 +1,4 @@
+import hashlib
 import random
 import uuid
 from datetime import datetime, timezone
@@ -10,7 +11,7 @@ from app.api.deps import get_current_user
 from app.models.user import User
 from app.models.alert import Alert
 from app.models.audit import AuditEvent
-from app.schemas.rules import AlertResponse, AlertActionRequest
+from app.schemas.rules import AlertResponse, AlertActionRequest, CommunicationDispatchResponse
 
 router = APIRouter()
 
@@ -62,7 +63,7 @@ def acknowledge_alert(
     alert.status = "Acknowledged"
 
     audit = AuditEvent(
-        id=f"AUD-{random.randint(1000, 9999)}",
+        id=f"AUD-{uuid.uuid4().hex[:8].upper()}",
         time=get_now_stamp(),
         actor=current_user.full_name,
         target=alert.target,
@@ -76,6 +77,7 @@ def acknowledge_alert(
     db.commit()
     db.refresh(alert)
     return alert
+
 
 @router.post("/{id}/resolve", response_model=AlertResponse)
 def resolve_alert(
@@ -99,7 +101,7 @@ def resolve_alert(
     note_text = f" Note: {req.note.strip()}" if req and req.note and req.note.strip() else ""
 
     audit = AuditEvent(
-        id=f"AUD-{random.randint(1000, 9999)}",
+        id=f"AUD-{uuid.uuid4().hex[:8].upper()}",
         time=get_now_stamp(),
         actor=current_user.full_name,
         target=alert.target,
@@ -113,3 +115,87 @@ def resolve_alert(
     db.commit()
     db.refresh(alert)
     return alert
+
+
+@router.get("/outbox", response_model=List[CommunicationDispatchResponse])
+def get_communication_outbox(
+    channel: Optional[str] = Query(None, description="Filter by channel: SMS or EMAIL"),
+    target: Optional[str] = Query(None, description="Filter by target ID"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Transparent communication outbox logging simulated SMS and Email dispatches
+    triggered by regulatory alerts and automated statutory notifications (Task 6.2).
+    """
+    alerts_query = db.query(Alert)
+    if current_user.role == "Institution User":
+        alerts_query = alerts_query.filter(Alert.recipient_role == "Institution User")
+
+    if target:
+        alerts_query = alerts_query.filter(Alert.target == target.strip())
+
+    alerts = alerts_query.order_by(Alert.created_at.desc()).all()
+
+    dispatches: List[CommunicationDispatchResponse] = []
+    for alert in alerts:
+        corr_hash = hashlib.sha256(f"{alert.id}:{alert.created_at}".encode("utf-8")).hexdigest()[:8].upper()
+        corr_id = f"DISP-{corr_hash}"
+
+        if alert.recipient_role == "Institution User":
+            # 1. SMS Dispatch
+            if not channel or channel.upper() == "SMS":
+                dispatches.append(
+                    CommunicationDispatchResponse(
+                        id=f"SMS-{alert.id.replace('ALT-', '')}",
+                        channel="SMS",
+                        recipient="+91 98765 43210 (Nodal Officer)",
+                        recipient_role=alert.recipient_role,
+                        target=alert.target,
+                        rule_id=alert.rule_id,
+                        subject=f"AICTE Notice: {alert.rule_id}",
+                        message=f"AICTE Statutory Notice [{alert.rule_id}]: {alert.title}. Log in to ARGUS portal to take action.",
+                        dispatched_at=alert.created_at,
+                        status="Delivered",
+                        correlation=corr_id,
+                    )
+                )
+            # 2. Email Dispatch
+            if not channel or channel.upper() == "EMAIL":
+                dispatches.append(
+                    CommunicationDispatchResponse(
+                        id=f"EML-{alert.id.replace('ALT-', '')}",
+                        channel="EMAIL",
+                        recipient="principal@institution.edu.in",
+                        recipient_role=alert.recipient_role,
+                        target=alert.target,
+                        rule_id=alert.rule_id,
+                        subject=f"URGENT: AICTE Statutory Regulatory Notice — {alert.title}",
+                        message=alert.message,
+                        dispatched_at=alert.created_at,
+                        status="Delivered",
+                        correlation=corr_id,
+                    )
+                )
+        else:
+            # Officer Official Escalation Notification (Email)
+            if not channel or channel.upper() == "EMAIL":
+                officer_email = f"{alert.recipient_role.lower().replace(' ', '.')}@aicte.gov.in"
+                dispatches.append(
+                    CommunicationDispatchResponse(
+                        id=f"EML-{alert.id.replace('ALT-', '')}",
+                        channel="EMAIL",
+                        recipient=officer_email,
+                        recipient_role=alert.recipient_role,
+                        target=alert.target,
+                        rule_id=alert.rule_id,
+                        subject=f"[AICTE Escalation] {alert.title} — Action Required for {alert.target}",
+                        message=alert.message,
+                        dispatched_at=alert.created_at,
+                        status="Delivered",
+                        correlation=corr_id,
+                    )
+                )
+
+    return dispatches
+

@@ -60,16 +60,39 @@ def test_stage_transition_and_deficiency_lifecycle():
     assert returned_data["resume_stage"] == "EVC Scheduling"
     assert returned_data["return_reason"] == "Missing endorsed lab layout schematic."
 
-    # 4. Resubmit by institution restores workflow to preserved resume stage
+    # 3b. Verify Deficiency Notice PDF memo is available and signed with SHA-256
+    memo_resp = client.get(
+        "/api/v1/applications/APP-2026-014/letter?letter_type=deficiency",
+        headers={"Authorization": f"Bearer {inst_token}"},
+    )
+    assert memo_resp.status_code == 200
+    assert memo_resp.headers["content-type"] == "application/pdf"
+    assert "X-Document-Checksum-SHA256" in memo_resp.headers
+    assert len(memo_resp.headers["X-Document-Checksum-SHA256"]) == 64
+
+    # 3c. Non-institution role cannot resubmit
+    forbidden_resubmit = client.post(
+        "/api/v1/applications/APP-2026-014/transition",
+        headers={"Authorization": f"Bearer {scrutiny_token}"},
+        json={"action": "resubmit"},
+    )
+    assert forbidden_resubmit.status_code == 403
+    assert "cannot resubmit institution responses" in forbidden_resubmit.json()["detail"]
+
+    # 4. Resubmit by institution with rectification remarks restores workflow to preserved resume stage
     resubmit_resp = client.post(
         "/api/v1/applications/APP-2026-014/transition",
         headers={"Authorization": f"Bearer {inst_token}"},
-        json={"action": "resubmit"},
+        json={
+            "action": "resubmit",
+            "remarks": "Uploaded revised architectural layout endorsed by chartered civil engineer.",
+        },
     )
     assert resubmit_resp.status_code == 200
     resumed_data = resubmit_resp.json()
     assert resumed_data["stage"] == "EVC Scheduling"
     assert resumed_data["status"] == "In progress"
+    assert resumed_data["owner_role"] == "Scrutiny Officer"
 
 def test_evc_scheduling_and_report_flow():
     coordinator_token = get_auth_token("coordinator@aicte.gov.in")

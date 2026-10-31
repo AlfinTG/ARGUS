@@ -14,6 +14,7 @@ import {
 import type { ScreenType, NavCounts, RoleType } from './types';
 import { OverviewScreen } from './screens/OverviewScreen';
 import { ApplicationsScreen } from './screens/ApplicationsScreen';
+import { RegionalDeskScreen } from './screens/RegionalDeskScreen';
 import { CaseDetailScreen } from './screens/CaseDetailScreen';
 import { ComplianceScreen } from './screens/ComplianceScreen';
 import { EVCDeskScreen } from './screens/EVCDeskScreen';
@@ -121,6 +122,7 @@ function App() {
   // Compute live navigation counts
   const navCounts: NavCounts = {
     applications: state.apps.filter((a) => !['Closed', 'Rejected'].includes(a.status)).length,
+    regional: state.apps.filter((a) => ['Initial Scrutiny', 'EVC Report Review', 'SAC/SHC Review'].includes(a.stage)).length,
     alerts: state.alerts.filter((a) => a.status === 'Open').length,
     evc: state.evcs.filter((e) => e.status !== 'Completed').length,
     compliance: state.compliance.filter((c) => c.verification !== 'Verified').length,
@@ -169,6 +171,13 @@ function App() {
 
       {/* Body: sidebar + main content */}
       <div className="app-body">
+        {isMobileMenuOpen && (
+          <div
+            className="sidebar-backdrop active"
+            onClick={() => setIsMobileMenuOpen(false)}
+            aria-hidden="true"
+          />
+        )}
         <Sidebar
           currentScreen={currentScreen}
           onNavigate={setCurrentScreen}
@@ -176,6 +185,21 @@ function App() {
           isOpenMobile={isMobileMenuOpen}
           onCloseMobile={() => setIsMobileMenuOpen(false)}
           userRole={state.role}
+          onRoleChange={(role) => {
+            setRole(role);
+            if (authUser) {
+              const updatedUser = { ...authUser, role };
+              setAuthUser(updatedUser);
+              try {
+                localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(updatedUser));
+              } catch {
+                // ignore
+              }
+            }
+            addToast(`Role switched to: ${role}`, 'info');
+          }}
+          authUser={authUser}
+          onSignOut={handleSignOut}
         />
 
         <div className="main-wrapper">
@@ -186,15 +210,6 @@ function App() {
               <span className="crumb-sep">›</span>
               <span className="current">{meta.crumb}</span>
             </nav>
-
-            {/* Page header */}
-            <div className="page-header">
-              <div>
-                <h1>{meta.title}</h1>
-                <p>{meta.desc}</p>
-              </div>
-              {/* Screen-level actions are rendered within each screen component */}
-            </div>
 
             {!isPermitted ? (
               <div
@@ -232,6 +247,9 @@ function App() {
                 )}
                 {currentScreen === 'applications' && (
                   <ApplicationsScreen onNavigate={setCurrentScreen} onToast={addToast} />
+                )}
+                {currentScreen === 'regional' && (
+                  <RegionalDeskScreen onNavigate={setCurrentScreen} onToast={addToast} />
                 )}
                 {currentScreen === 'case' && (
                   <CaseDetailScreen onNavigate={setCurrentScreen} onToast={addToast} />

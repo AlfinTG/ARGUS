@@ -119,6 +119,20 @@ export interface Alert {
   processedKey?: string;
 }
 
+export interface CommunicationDispatch {
+  id: string;
+  channel: 'SMS' | 'EMAIL';
+  recipient: string;
+  recipientRole: string;
+  target: string;
+  ruleId: string;
+  subject: string;
+  message: string;
+  dispatchedAt: string;
+  status: string;
+  correlation: string;
+}
+
 export type AuditEventType = 
   | 'Workflow' 
   | 'Automation' 
@@ -166,4 +180,43 @@ export interface AppState {
   audit: AuditEvent[];
   processedKeys: string[];
   selectedAppId: string | null;
+}
+
+// ── Institutional Application Filing (APH 2026-27) ───────────────────────────
+export interface CourseIntakeItem {
+  program: string;
+  level: 'UG' | 'PG' | 'Diploma';
+  title: string;
+  intake: number;
+}
+
+export interface StatutoryDocumentPayload {
+  doc_type: 'registered_lease_deed' | 'fire_safety_noc' | 'faculty_cadre_undertaking';
+  title: string;
+  file_name: string;
+  checksum_sha256: string;
+  file_size?: number;
+  uploaded_at?: string;
+}
+
+export interface InstitutionalFilingPayload {
+  aicte_permanent_id: string;
+  institution_name: string;
+  region: string;
+  route: RouteType;
+  app_type?: string;
+  due_date?: string;
+  courses: CourseIntakeItem[];
+  documents: StatutoryDocumentPayload[];
+  affidavit_accepted: boolean;
+  signatory_designation: string;
+}
+
+export interface InstitutionalFilingResult {
+  application: Application;
+  correlation_token: string;
+  total_intake: number;
+  courses_count: number;
+  documents_count: number;
+  message: string;
 }

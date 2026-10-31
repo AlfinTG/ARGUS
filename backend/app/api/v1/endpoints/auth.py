@@ -6,6 +6,7 @@ from jose import jwt
 
 from app.db.session import get_db
 from app.models.user import User
+from app.core.config import settings
 from app.core.security import verify_password, get_password_hash, create_access_token
 from app.schemas.auth import (
     LoginRequest,
@@ -49,24 +50,18 @@ def login(login_data: LoginRequest, db: Session = Depends(get_db)):
 
 @router.post("/signup", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 def signup(req: SignupRequest, db: Session = Depends(get_db)):
-    # 1. Validate role
-    if req.role not in VALID_ROLES:
+    # 1. Enforce strict role boundary: Public self-registration is strictly for Institution User
+    if req.role != "Institution User":
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid role '{req.role}'. Must be one of: {', '.join(VALID_ROLES)}",
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Public registration is strictly permitted for 'Institution User' only. Official and administrative accounts must be provisioned by a System Operator.",
         )
 
     # 2. Contextual requirements
-    if req.role == "Institution User" and (not req.institution_id or not req.institution_id.strip()):
+    if not req.institution_id or not req.institution_id.strip():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="institution_id is required for Institution User role.",
-        )
-
-    if req.role == "Regional Officer" and (not req.region or not req.region.strip()):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="region is required for Regional Officer role.",
+            detail="institution_id is required for Institution User registration.",
         )
 
     # 3. Check duplicate email
@@ -86,9 +81,9 @@ def signup(req: SignupRequest, db: Session = Depends(get_db)):
         email=req.email,
         hashed_password=hashed_pwd,
         full_name=req.full_name.strip(),
-        role=req.role,
-        institution_id=req.institution_id.strip() if req.institution_id else None,
-        region=req.region.strip() if req.region else None,
+        role="Institution User",
+        institution_id=req.institution_id.strip(),
+        region=None,
         is_active=True,
     )
 
@@ -116,12 +111,18 @@ def google_auth(req: GoogleAuthRequest, db: Session = Depends(get_db)):
     full_name = req.full_name
 
     if not email and req.credential:
-        try:
-            claims = jwt.get_unverified_claims(req.credential)
-            email = claims.get("email")
-            full_name = full_name or claims.get("name")
-        except Exception:
-            pass
+        if settings.ENABLE_MOCK_AUTH:
+            try:
+                claims = jwt.get_unverified_claims(req.credential)
+                email = claims.get("email")
+                full_name = full_name or claims.get("name")
+            except Exception:
+                pass
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Mock Google token decoding is disabled in this environment.",
+            )
 
     if not email:
         raise HTTPException(
@@ -139,14 +140,10 @@ def google_auth(req: GoogleAuthRequest, db: Session = Depends(get_db)):
                 detail="Account is deactivated.",
             )
     else:
-        # 3. Auto-provision new user from Google
-        role = req.role if req.role in VALID_ROLES else "Institution User"
-        inst_id = req.institution_id.strip() if req.institution_id else (
-            "INST-NEW" if role == "Institution User" else None
-        )
-        region = req.region.strip() if req.region else (
-            "West" if role == "Regional Officer" else None
-        )
+        # 3. Auto-provision new user from Google: strictly as Institution User
+        role = "Institution User"
+        inst_id = req.institution_id.strip() if req.institution_id else "INST-NEW"
+        region = None
 
         user_id = f"USR-{uuid.uuid4().hex[:6].upper()}"
         # Set a random hashed password for accounts provisioned via Google

@@ -8,6 +8,9 @@ import type {
   AutomationRule,
   DemoSettings,
   FileUploadResult,
+  InstitutionalFilingPayload,
+  InstitutionalFilingResult,
+  CommunicationDispatch,
 } from '../types/domain';
 import type { RoleType } from '../types';
 
@@ -351,18 +354,44 @@ export const api = {
     return raw.map(transformEVC);
   },
 
-  async scheduleEVC(id: string, visitDate: string, panel: string): Promise<EVCTask> {
+  async scheduleEVC(
+    id: string, 
+    visitDate: string, 
+    panel: string, 
+    inspectionMode = 'Physical Visit'
+  ): Promise<EVCTask> {
     const raw = await request<any>(`/api/v1/evc/${id}/schedule`, {
       method: 'POST',
-      body: JSON.stringify({ visit_date: visitDate, panel }),
+      body: JSON.stringify({
+        visit_date: visitDate,
+        panel,
+        inspection_mode: inspectionMode,
+      }),
     });
     return transformEVC(raw);
   },
 
-  async submitEVCReport(id: string, outcome: string, remarks: string): Promise<EVCTask> {
+  async submitEVCReport(
+    id: string, 
+    outcome: string, 
+    remarks = '', 
+    rubric?: {
+      infrastructure_ok?: boolean;
+      laboratories_ok?: boolean;
+      library_ok?: boolean;
+      faculty_cadre_ok?: boolean;
+    }
+  ): Promise<EVCTask> {
     const raw = await request<any>(`/api/v1/evc/${id}/report`, {
       method: 'POST',
-      body: JSON.stringify({ outcome, remarks }),
+      body: JSON.stringify({
+        outcome,
+        remarks,
+        infrastructure_ok: rubric?.infrastructure_ok ?? true,
+        laboratories_ok: rubric?.laboratories_ok ?? true,
+        library_ok: rubric?.library_ok ?? true,
+        faculty_cadre_ok: rubric?.faculty_cadre_ok ?? true,
+      }),
     });
     return transformEVC(raw);
   },
@@ -454,6 +483,27 @@ export const api = {
     return transformAlert(raw);
   },
 
+  async getCommunicationOutbox(channel?: string, target?: string): Promise<CommunicationDispatch[]> {
+    const params = new URLSearchParams();
+    if (channel) params.append('channel', channel);
+    if (target) params.append('target', target);
+    const q = params.toString() ? `?${params.toString()}` : '';
+    const raw = await request<any[]>(`/api/v1/alerts/outbox${q}`);
+    return raw.map((d: any) => ({
+      id: d.id,
+      channel: d.channel,
+      recipient: d.recipient,
+      recipientRole: d.recipient_role,
+      target: d.target,
+      ruleId: d.rule_id,
+      subject: d.subject,
+      message: d.message,
+      dispatchedAt: d.dispatched_at,
+      status: d.status,
+      correlation: d.correlation,
+    }));
+  },
+
   async getRules(): Promise<AutomationRule[]> {
     return request<AutomationRule[]>('/api/v1/rules/');
   },
@@ -504,5 +554,37 @@ export const api = {
   async getAudit(): Promise<AuditEvent[]> {
     const raw = await request<any[]>('/api/v1/audit/');
     return raw.map(transformAudit);
+  },
+
+  async submitInstitutionalFiling(payload: InstitutionalFilingPayload): Promise<InstitutionalFilingResult> {
+    const raw = await request<any>('/api/v1/applications/institutional-filing', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    return {
+      application: transformApp(raw.application),
+      correlation_token: raw.correlation_token,
+      total_intake: raw.total_intake,
+      courses_count: raw.courses_count,
+      documents_count: raw.documents_count,
+      message: raw.message,
+    };
+  },
+
+  async regionalReview(
+    id: string,
+    recommendation: 'Endorse' | 'Escalate' | 'Return',
+    remarks: string,
+    complianceIdsVerified: string[] = []
+  ): Promise<Application> {
+    const raw = await request<any>(`/api/v1/applications/${id}/regional-review`, {
+      method: 'POST',
+      body: JSON.stringify({
+        recommendation,
+        remarks,
+        compliance_ids_verified: complianceIdsVerified,
+      }),
+    });
+    return transformApp(raw);
   },
 };

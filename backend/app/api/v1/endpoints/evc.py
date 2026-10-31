@@ -43,18 +43,27 @@ def schedule_evc_visit(
     if not evc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="EVC task not found")
 
-    evc.visit_date = req.visit_date
-    evc.panel = req.panel
+    if not req.visit_date or not req.visit_date.strip():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Inspection visit date is required.")
+
+    if not req.panel or not req.panel.strip():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Assigned expert panel members are required.")
+
+    evc.visit_date = req.visit_date.strip()
+    evc.panel = req.panel.strip()
     evc.status = "Scheduled"
 
     audit_entry = AuditEvent(
-        id=f"AUD-{random.randint(1000, 9999)}",
+        id=f"AUD-{uuid.uuid4().hex[:8].upper()}",
         time=get_now_stamp(),
         actor=current_user.full_name,
         target=evc.id,
         event_type="EVC",
         rule="EVC-01",
-        detail=f"EVC visit scheduled for {req.visit_date}. Assigned panel: '{req.panel}'.",
+        detail=(
+            f"EVC visit scheduled for {req.visit_date} (Mode: {req.inspection_mode or 'Physical Visit'}). "
+            f"Assigned panel: '{req.panel.strip()}'."
+        ),
         correlation=generate_correlation(),
     )
 
@@ -77,29 +86,55 @@ def submit_evc_report(
     evc.report_status = "Submitted"
     evc.status = "Completed"
 
-    # Also advance the linked application to its next route stage
+    now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+    # Update linked application based on inspection outcome
     app = db.query(Application).filter(Application.id == evc.app_id).first()
     if app:
-        route_seq = ROUTES.get(app.route, [])
-        try:
-            curr_idx = route_seq.index(app.stage)
-            if curr_idx < len(route_seq) - 1:
-                next_stage = route_seq[curr_idx + 1]
-                app.stage = next_stage
-                app.status = "Decision pending" if next_stage == "Decision Pending" else "In progress"
-                app.owner_role = "Competent Authority" if next_stage == "Decision Pending" else app.owner_role
-                app.updated_at = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-        except ValueError:
-            pass
+        if req.outcome == "Deficiencies Noted":
+            app.status = "Action required"
+            app.return_reason = req.remarks or "Deficiencies noted during EVC inspection."
+            app.updated_at = now_str
+        else:
+            route_seq = ROUTES.get(app.route, [])
+            try:
+                curr_idx = route_seq.index(app.stage)
+                if curr_idx < len(route_seq) - 1:
+                    next_stage = route_seq[curr_idx + 1]
+                    app.stage = next_stage
+                    if next_stage == "Decision Pending":
+                        app.status = "Decision pending"
+                        app.owner_role = "Competent Authority"
+                    elif next_stage == "EVC Report Review":
+                        app.status = "In progress"
+                        app.owner_role = "Regional Officer"
+                    elif next_stage == "SAC/SHC Review":
+                        app.status = "In progress"
+                        app.owner_role = "Regional Officer"
+                    else:
+                        app.status = "In progress"
+                    app.updated_at = now_str
+            except ValueError:
+                pass
+
+    checklist_summary = (
+        f"Infrastructure: {'OK' if req.infrastructure_ok else 'Deficient'}, "
+        f"Labs: {'OK' if req.laboratories_ok else 'Deficient'}, "
+        f"Library: {'OK' if req.library_ok else 'Deficient'}, "
+        f"Faculty Cadre: {'OK' if req.faculty_cadre_ok else 'Deficient'}"
+    )
 
     audit_entry = AuditEvent(
-        id=f"AUD-{random.randint(1000, 9999)}",
+        id=f"AUD-{uuid.uuid4().hex[:8].upper()}",
         time=get_now_stamp(),
         actor=current_user.full_name,
         target=evc.id,
         event_type="EVC",
         rule="EVC-02",
-        detail=f"EVC report submitted: {req.outcome}. Remarks: '{req.remarks or 'None'}'. Associated application stage advanced.",
+        detail=(
+            f"EVC report submitted: {req.outcome}. Rubric [{checklist_summary}]. "
+            f"Remarks: '{req.remarks or 'None'}'. Case state synchronized."
+        ),
         correlation=generate_correlation(),
     )
 

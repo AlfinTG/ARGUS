@@ -210,3 +210,83 @@ def test_unauthorized_upload_rejected():
         files={"file": ("anon.pdf", io.BytesIO(pdf_content), "application/pdf")},
     )
     assert resp_anon.status_code == 401
+
+
+def test_scrutiny_officer_can_verify_document():
+    scrutiny_token = get_auth_token("scrutiny@aicte.gov.in")
+    resp = client.post(
+        "/api/v1/documents/DOC-001/verify",
+        headers={"Authorization": f"Bearer {scrutiny_token}"},
+        json={"verified": True, "remarks": "Registered Lease Deed verified against Sub-Registrar records."},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["id"] == "DOC-001"
+    assert data["review_status"] == "Verified"
+    assert data["renewal_status"] == "Verified"
+    assert data["expiry_date"] == "2027-10-31"
+
+
+def test_unauthorized_role_cannot_verify_document():
+    inst_token = get_auth_token("institution@shivneri.edu.in")
+    resp = client.post(
+        "/api/v1/documents/DOC-001/verify",
+        headers={"Authorization": f"Bearer {inst_token}"},
+        json={"verified": True, "remarks": "Self-verification attempt."},
+    )
+    assert resp.status_code == 403
+    assert "Action not permitted for role 'Institution User'" in resp.json()["detail"]
+
+
+def test_verify_nonexistent_document_returns_404():
+    scrutiny_token = get_auth_token("scrutiny@aicte.gov.in")
+    resp = client.post(
+        "/api/v1/documents/DOC-9999-NONEXISTENT/verify",
+        headers={"Authorization": f"Bearer {scrutiny_token}"},
+        json={"verified": True, "remarks": "Nonexistent test."},
+    )
+    assert resp.status_code == 404
+    assert "Document record not found" in resp.json()["detail"]
+
+
+def test_filter_documents_by_institution():
+    token = get_auth_token("scrutiny@aicte.gov.in")
+    resp = client.get(
+        "/api/v1/documents/?institution=Shivneri",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 200
+    docs = resp.json()
+    assert len(docs) > 0
+    for d in docs:
+        assert "Shivneri" in d["institution"]
+
+
+def test_stream_statutory_dossier_auto_generates_pdf():
+    # DOC-002 is the seeded Fire safety certificate with no pre-existing binary file.
+    # Preview must auto-generate and stream a valid statutory PDF with 200 OK.
+    token = get_auth_token("scrutiny@aicte.gov.in")
+    resp = client.get(
+        "/api/v1/documents/DOC-002/file",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 200
+    assert resp.headers["content-type"] == "application/pdf"
+    assert resp.content.startswith(b"%PDF")
+    assert b"ALL INDIA COUNCIL FOR TECHNICAL EDUCATION" in resp.content or len(resp.content) > 1000
+
+
+def test_stream_compliance_evidence_auto_generates_pdf():
+    # CMP-014 is the seeded compliance obligation with no pre-existing binary file.
+    # Preview must auto-generate and stream a valid compliance PDF with 200 OK.
+    token = get_auth_token("scrutiny@aicte.gov.in")
+    resp = client.get(
+        "/api/v1/compliance/CMP-014/file",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 200
+    assert resp.headers["content-type"] == "application/pdf"
+    assert resp.content.startswith(b"%PDF")
+    assert len(resp.content) > 1000
+
+

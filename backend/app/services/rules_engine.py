@@ -69,6 +69,12 @@ def get_now_stamp() -> str:
 def generate_correlation() -> str:
     return "COR-" + uuid.uuid4().hex[:7].upper()
 
+def generate_alert_id() -> str:
+    return f"ALT-{uuid.uuid4().hex[:8].upper()}"
+
+def generate_audit_id() -> str:
+    return f"AUD-{uuid.uuid4().hex[:8].upper()}"
+
 def parse_iso_date(date_str: Optional[str]) -> Optional[date]:
     if not date_str:
         return None
@@ -136,12 +142,12 @@ def evaluate_rules(db: Session, as_of_date_str: Optional[str] = None) -> RuleEva
 
         # Overdue Rule DL-02
         if diff < 0:
-            key = f"{app.id}:DL-02:{app.due_date}"
+            key = f"{app.id}:DL-02:{app.due_date}:{config.policy_version}"
             if key in processed_keys:
                 skipped_duplicates += 1
             else:
                 processed_keys.add(key)
-                alert_id = f"ALT-{random.randint(1000, 9999)}"
+                alert_id = generate_alert_id()
                 new_alerts.append(
                     Alert(
                         id=alert_id,
@@ -157,7 +163,7 @@ def evaluate_rules(db: Session, as_of_date_str: Optional[str] = None) -> RuleEva
                 )
                 new_audits.append(
                     AuditEvent(
-                        id=f"AUD-{random.randint(1000, 9999)}",
+                        id=generate_audit_id(),
                         time=now_stamp,
                         actor="Automation Engine",
                         target=app.id,
@@ -169,12 +175,12 @@ def evaluate_rules(db: Session, as_of_date_str: Optional[str] = None) -> RuleEva
                 )
         # Upcoming Deadline Rule DL-01
         elif diff <= config.reminder_days:
-            key = f"{app.id}:DL-01:{app.due_date}"
+            key = f"{app.id}:DL-01:{app.due_date}:{config.policy_version}"
             if key in processed_keys:
                 skipped_duplicates += 1
             else:
                 processed_keys.add(key)
-                alert_id = f"ALT-{random.randint(1000, 9999)}"
+                alert_id = generate_alert_id()
                 new_alerts.append(
                     Alert(
                         id=alert_id,
@@ -190,7 +196,7 @@ def evaluate_rules(db: Session, as_of_date_str: Optional[str] = None) -> RuleEva
                 )
                 new_audits.append(
                     AuditEvent(
-                        id=f"AUD-{random.randint(1000, 9999)}",
+                        id=generate_audit_id(),
                         time=now_stamp,
                         actor="Automation Engine",
                         target=app.id,
@@ -214,12 +220,12 @@ def evaluate_rules(db: Session, as_of_date_str: Optional[str] = None) -> RuleEva
         eval_compliance_count += 1
 
         if diff < 0:
-            key = f"{comp.id}:DL-02:{comp.due_date}"
+            key = f"{comp.id}:DL-02:{comp.due_date}:{config.policy_version}"
             if key in processed_keys:
                 skipped_duplicates += 1
             else:
                 processed_keys.add(key)
-                alert_id = f"ALT-{random.randint(1000, 9999)}"
+                alert_id = generate_alert_id()
                 new_alerts.append(
                     Alert(
                         id=alert_id,
@@ -234,12 +240,12 @@ def evaluate_rules(db: Session, as_of_date_str: Optional[str] = None) -> RuleEva
                     )
                 )
         elif diff <= config.reminder_days:
-            key = f"{comp.id}:DL-01:{comp.due_date}"
+            key = f"{comp.id}:DL-01:{comp.due_date}:{config.policy_version}"
             if key in processed_keys:
                 skipped_duplicates += 1
             else:
                 processed_keys.add(key)
-                alert_id = f"ALT-{random.randint(1000, 9999)}"
+                alert_id = generate_alert_id()
                 new_alerts.append(
                     Alert(
                         id=alert_id,
@@ -267,12 +273,12 @@ def evaluate_rules(db: Session, as_of_date_str: Optional[str] = None) -> RuleEva
         eval_documents_count += 1
 
         if diff < 0:
-            key = f"{doc.id}:DOC-01:EXPIRED:{doc.expiry_date}"
+            key = f"{doc.id}:DOC-01:EXPIRED:{doc.expiry_date}:{config.policy_version}"
             if key in processed_keys:
                 skipped_duplicates += 1
             else:
                 processed_keys.add(key)
-                alert_id = f"ALT-{random.randint(1000, 9999)}"
+                alert_id = generate_alert_id()
                 new_alerts.append(
                     Alert(
                         id=alert_id,
@@ -287,12 +293,12 @@ def evaluate_rules(db: Session, as_of_date_str: Optional[str] = None) -> RuleEva
                     )
                 )
         elif diff <= config.expiry_days:
-            key = f"{doc.id}:DOC-01:WARNING:{doc.expiry_date}"
+            key = f"{doc.id}:DOC-01:WARNING:{doc.expiry_date}:{config.policy_version}"
             if key in processed_keys:
                 skipped_duplicates += 1
             else:
                 processed_keys.add(key)
-                alert_id = f"ALT-{random.randint(1000, 9999)}"
+                alert_id = generate_alert_id()
                 new_alerts.append(
                     Alert(
                         id=alert_id,
@@ -309,7 +315,7 @@ def evaluate_rules(db: Session, as_of_date_str: Optional[str] = None) -> RuleEva
 
     # 4. Summary Audit Event
     summary_audit = AuditEvent(
-        id=f"AUD-{random.randint(1000, 9999)}",
+        id=generate_audit_id(),
         time=now_stamp,
         actor="Automation Engine",
         target="System",
