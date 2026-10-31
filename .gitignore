@@ -1,0 +1,141 @@
+# ==============================================================================
+# ARGUS — Global Repository .gitignore
+# Covers Python (FastAPI/SQLAlchemy), Node.js (React/Vite), Docker, OS & IDEs
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. Secrets, Credentials & Local Environment Files
+# ------------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.env
+*.pem
+*.key
+*.cert
+*.crt
+*.pfx
+*.p12
+
+# ------------------------------------------------------------------------------
+# 2. Database & Persistent Local Storage
+# ------------------------------------------------------------------------------
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+*.sqlite3-journal
+data/
+db/
+*.dump
+*.sql.gz
+uploads/
+backend/uploads/
+
+# ------------------------------------------------------------------------------
+# 3. Python Virtual Environments & Bytecode
+# ------------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environments
+.venv/
+venv/
+ENV/
+env/
+env.bak/
+venv.bak/
+
+# Testing, Quality & Coverage
+.pytest_cache/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+htmlcov/
+.tox/
+.nox/
+.ruff_cache/
+.mypy_cache/
+
+# ------------------------------------------------------------------------------
+# 4. Node.js & Frontend (React / Vite)
+# ------------------------------------------------------------------------------
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+.pnp
+.pnp.js
+
+# Build Artifacts
+frontend/dist/
+frontend/dist-ssr/
+frontend/.next/
+frontend/out/
+
+# ------------------------------------------------------------------------------
+# 5. OS Specific Files
+# ------------------------------------------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+[Dd]esktop.ini
+
+# ------------------------------------------------------------------------------
+# 6. IDEs & Editors
+# ------------------------------------------------------------------------------
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+*~
+*.bak
+
+# VS Code (preserve shared recommendations, ignore workspace user state)
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# ------------------------------------------------------------------------------
+# 7. Logs & Temporary Files
+# ------------------------------------------------------------------------------
+logs/
+*.log
+tmp/
+temp/
+scratch/
+end_to_end_regulatory_journey.png
+

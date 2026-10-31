@@ -1,0 +1,210 @@
+/* ==============================================================================
+   ARGUS Splash Screen Styles — AICTE Government Light Theme
+   ============================================================================== */
+
+.splash-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: radial-gradient(circle at center, #ffffff 0%, #f8fafc 65%, #f1f5f9 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+              filter 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.splash-overlay.splash-exit {
+  opacity: 0;
+  filter: blur(14px);
+  transform: scale(1.04);
+  pointer-events: none;
+}
+
+/* Background Micro-Grid */
+.splash-grid {
+  position: absolute;
+  inset: 0;
+  background-image: 
+    linear-gradient(rgba(0, 53, 128, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 53, 128, 0.035) 1px, transparent 1px);
+  background-size: 40px 40px;
+  background-position: center center;
+  pointer-events: none;
+  mask-image: radial-gradient(circle at center, black 45%, transparent 80%);
+  -webkit-mask-image: radial-gradient(circle at center, black 45%, transparent 80%);
+}
+
+.splash-glow-orb {
+  position: absolute;
+  width: 520px;
+  height: 520px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(26, 115, 232, 0.12) 0%, rgba(0, 53, 128, 0.04) 50%, transparent 75%);
+  filter: blur(70px);
+  pointer-events: none;
+  animation: splashPulse 3s ease-in-out infinite alternate;
+}
+
+@keyframes splashPulse {
+  0% { transform: scale(0.92); opacity: 0.6; }
+  100% { transform: scale(1.1); opacity: 1; }
+}
+
+/* Emblem Container */
+.splash-emblem-wrap {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.splash-logo-img {
+  width: 130px;
+  height: 130px;
+  object-fit: contain;
+  filter: drop-shadow(0 14px 28px rgba(0, 53, 128, 0.22));
+  animation: splashLogoPulse 3s ease-in-out infinite alternate;
+}
+
+@keyframes splashLogoPulse {
+  0% {
+    transform: scale(0.96) translateY(0);
+    filter: drop-shadow(0 10px 20px rgba(0, 53, 128, 0.18));
+  }
+  100% {
+    transform: scale(1.03) translateY(-4px);
+    filter: drop-shadow(0 18px 32px rgba(0, 53, 128, 0.28));
+  }
+}
+
+/* Typography */
+.splash-brand-title {
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 44px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  color: #003580;
+  text-transform: uppercase;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  text-shadow: 0 2px 10px rgba(0, 53, 128, 0.08);
+}
+
+.splash-brand-title .brand-accent {
+  color: #1a73e8;
+}
+
+.splash-subtitle {
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: #475569;
+  text-transform: uppercase;
+  margin-top: 8px;
+  text-align: center;
+}
+
+.splash-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 6px 16px;
+  border-radius: 9999px;
+  background: #e8f0fe;
+  border: 1px solid #bfdbfe;
+  color: #1e40af;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.splash-badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #1a73e8;
+  box-shadow: 0 0 6px #1a73e8;
+  animation: splashDotBlink 1s infinite alternate;
+}
+
+@keyframes splashDotBlink {
+  0% { opacity: 0.4; }
+  100% { opacity: 1; }
+}
+
+/* Progress & Telemetry Section */
+.splash-telemetry-box {
+  width: 320px;
+  margin-top: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.splash-progress-track {
+  width: 100%;
+  height: 5px;
+  border-radius: 9999px;
+  background: #e2e8f0;
+  overflow: hidden;
+  position: relative;
+}
+
+.splash-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #003580, #1a73e8);
+  border-radius: 9999px;
+  box-shadow: 0 1px 3px rgba(26, 115, 232, 0.4);
+  transition: width 0.25s ease-out;
+}
+
+.splash-status-text {
+  font-family: var(--font-mono, monospace);
+  font-size: 11.5px;
+  color: #003580;
+  text-align: center;
+  letter-spacing: 0.04em;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-weight: 600;
+}
+
+/* Skip / Enter Action */
+.splash-skip-btn {
+  margin-top: 26px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  padding: 8px 20px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.splash-skip-btn:hover {
+  background: #003580;
+  border-color: #003580;
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px rgba(0, 53, 128, 0.15);
+}
